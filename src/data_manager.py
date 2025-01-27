@@ -1,10 +1,7 @@
-# data_manager.py
-
 import json
 import os
 import uuid
 
-# Adjust this path if your store.json is located elsewhere
 STORE_FILE_PATH = os.path.join("data", "store.json")
 
 
@@ -21,7 +18,6 @@ def load_data():
             data = json.load(f)
         except json.JSONDecodeError:
             data = {"meets": []}
-    # Ensure the top-level structure is what we expect
     if "meets" not in data:
         data["meets"] = []
     return data
@@ -64,4 +60,38 @@ def get_meet(meet_id):
     for meet in data["meets"]:
         if meet["id"] == meet_id:
             return meet
+    return None
+
+
+def create_event(meet_id, event_name):
+    """
+    Creates a new event within the specified meet using the given event_name.
+    Returns the newly generated event's ID, or None if meet not found.
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            new_event_id = str(uuid.uuid4())
+            new_event = {
+                "id": new_event_id,
+                "eventName": event_name,
+                "examTopics": [],
+                "participants": []
+            }
+            meet["events"].append(new_event)
+            save_data(data)
+            return new_event_id
+    return None
+
+
+def get_event(meet_id, event_id):
+    """
+    Returns the event object from the specified meet, or None if not found.
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            for event in meet["events"]:
+                if event["id"] == event_id:
+                    return event
     return None

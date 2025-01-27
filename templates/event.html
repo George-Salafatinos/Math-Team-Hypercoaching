@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Event Details</h2>
+<p><strong>Name:</strong> {{ event.eventName }}</p>
+<p><strong>ID:</strong> {{ event.id }}</p>
+
+<hr>
+
+<h3>Upload Exam Images</h3>
+<form action="{{ url_for('upload_exam_images', meet_id=meet_id, event_id=event.id) }}" 
+      method="POST" 
+      enctype="multipart/form-data">
+    <input type="file" name="files" multiple>
+    <button type="submit">Submit Exam Images</button>
+</form>
+
+<h3>Upload Student Score Sheets</h3>
+<form action="{{ url_for('upload_student_scores', meet_id=meet_id, event_id=event.id) }}"
+      method="POST"
+      enctype="multipart/form-data">
+    <input type="file" name="files" multiple>
+    <button type="submit">Submit Score Sheets</button>
+</form>
+
+<hr>
+<p>
+(This page will later display parsed exam topics, participants, and scores.)
+</p>
+{% endblock %}

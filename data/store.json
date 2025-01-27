@@ -4,13 +4,27 @@
       "id": "47b60ebf-51a9-4c17-a475-34c594fa1d29",
       "title": "First Test Meet",
       "topicList": {},
-      "events": []
+      "events": [
+        {
+          "id": "57d597ed-79a6-4037-959c-326620472090",
+          "eventName": "Individual Geometry",
+          "examTopics": [],
+          "participants": []
+        }
+      ]
     },
     {
       "id": "f6cc49df-a28f-4761-b144-63314300d81c",
       "title": "hello",
       "topicList": {},
-      "events": []
+      "events": [
+        {
+          "id": "4b430a6c-1a34-425c-948b-b704236f0e1d",
+          "eventName": "Individual Algebra",
+          "examTopics": [],
+          "participants": []
+        }
+      ]
     }
   ]
 }

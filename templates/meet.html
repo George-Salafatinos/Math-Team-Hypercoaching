@@ -6,6 +6,30 @@
 <p><strong>ID:</strong> {{ meet.id }}</p>
 
 <hr>
-<p>(This is where we will later add "upload topic list" functionality, 
-list events, etc.)</p>
+
+<!-- Link to create a new event -->
+<a href="{{ url_for('create_event_route', meet_id=meet.id) }}">Create a New Event</a>
+
+<h3>Events in this Meet:</h3>
+{% if meet.events %}
+    <ul>
+        {% for event in meet.events %}
+            <li>
+                <a href="{{ url_for('view_event', meet_id=meet.id, event_id=event.id) }}">
+                    {{ event.eventName }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No events yet.</p>
+{% endif %}
+
+<hr>
+<!-- Stub for uploading topic list images for the entire meet -->
+<h3>Upload Topic List</h3>
+<form action="{{ url_for('upload_topic_list', meet_id=meet.id) }}" method="POST" enctype="multipart/form-data">
+    <input type="file" name="files" multiple>
+    <button type="submit">Submit Topic List Images</button>
+</form>
 {% endblock %}

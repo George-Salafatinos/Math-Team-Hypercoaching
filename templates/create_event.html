@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Create New Event</h2>
+
+<form method="POST">
+    <label for="event_name">Select an Event:</label>
+    <select id="event_name" name="event_name" required>
+        <option value="">--Choose an Event--</option>
+        {% for ev in possible_events %}
+        <option value="{{ ev }}">{{ ev }}</option>
+        {% endfor %}
+    </select>
+    <br><br>
+    <button type="submit">Create Event</button>
+</form>
+
+{% endblock %}

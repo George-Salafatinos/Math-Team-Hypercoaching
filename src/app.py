@@ -1,14 +1,20 @@
 import os
+import uuid
 from flask import Flask, render_template, request, redirect, url_for
+from werkzeug.utils import secure_filename
+
 from src.data_manager import (
     load_data,
     create_meet,
     get_meet,
     create_event,
-    get_event
+    get_event,
+    add_topic_list_files,
+    add_exam_files,
+    add_score_files
 )
 
-# Fixed event choices
+# Fixed event choices for the dropdown
 FIXED_EVENTS = [
     "Individual Algebra",
     "Individual Geometry",
@@ -25,6 +31,10 @@ def create_app():
     app = Flask(__name__,
                 template_folder="../templates",
                 static_folder="../static")
+
+    # Ensure there's a folder to store uploads
+    BASE_UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")
+    os.makedirs(BASE_UPLOAD_FOLDER, exist_ok=True)
 
     @app.route("/")
     def home_page():
@@ -43,10 +53,6 @@ def create_app():
 
     @app.route("/meet/<meet_id>")
     def view_meet(meet_id):
-        """
-        Shows basic details of a specific meet, and list of events.
-        Also provides a link to create a new event.
-        """
         meet = get_meet(meet_id)
         if not meet:
             return "Meet not found", 404
@@ -54,10 +60,6 @@ def create_app():
 
     @app.route("/meet/<meet_id>/create_event", methods=["GET", "POST"])
     def create_event_route(meet_id):
-        """
-        GET: Show a form with a dropdown of fixed events.
-        POST: Create the event, redirect to the event detail page.
-        """
         meet = get_meet(meet_id)
         if not meet:
             return "Meet not found", 404
@@ -68,57 +70,118 @@ def create_app():
                 event_id = create_event(meet_id, event_name)
                 if event_id:
                     return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
-            # If event_name isn't in the fixed list or creation failed, just reload
             return redirect(url_for("create_event_route", meet_id=meet_id))
 
-        # GET request: show the dropdown
         return render_template("create_event.html", 
-                               meet_id=meet_id, 
+                               meet_id=meet_id,
                                possible_events=FIXED_EVENTS)
 
     @app.route("/meet/<meet_id>/event/<event_id>")
     def view_event(meet_id, event_id):
-        """
-        Show basic info about this event, plus placeholders for file uploads.
-        """
         event = get_event(meet_id, event_id)
         if not event:
             return "Event not found", 404
         return render_template("event.html", meet_id=meet_id, event=event)
 
-    # Below are stubs for file uploads. They won't do any GPT parsing yet.
+    # ----------- FILE UPLOAD ROUTES ------------
 
     @app.route("/meet/<meet_id>/upload_topic_list", methods=["POST"])
     def upload_topic_list(meet_id):
         """
-        Stub for uploading topic-list images for a meet (NOT for a single event).
-        For now, it does nothing except confirm receipt.
+        Handle uploading topic-list images for a meet, store them on disk,
+        and record file paths in store.json
         """
-        if "files" in request.files:
-            uploaded_files = request.files.getlist("files")
-            print(f"Received {len(uploaded_files)} file(s) for topic list (meet ID = {meet_id})")
+        meet = get_meet(meet_id)
+        if not meet:
+            return "Meet not found", 404
+
+        uploaded_files = request.files.getlist("files")
+        saved_file_paths = []
+
+        # Create a folder specifically for this meet's topic list
+        topic_list_folder = os.path.join(BASE_UPLOAD_FOLDER, "topic_list", meet_id)
+        os.makedirs(topic_list_folder, exist_ok=True)
+
+        for file in uploaded_files:
+            if file and file.filename:
+                # Use a safe filename
+                original_filename = secure_filename(file.filename)
+                # Generate a unique name to avoid collisions
+                unique_name = f"{uuid.uuid4()}_{original_filename}"
+                # Build the full path
+                full_path = os.path.join(topic_list_folder, unique_name)
+                file.save(full_path)
+                # We'll store a relative path or absolute—your choice
+                # For clarity, let's store the relative path from "uploads/"
+                relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
+                saved_file_paths.append(relative_path)
+
+        # Save these file paths to the meet data
+        if saved_file_paths:
+            add_topic_list_files(meet_id, saved_file_paths)
+
         return redirect(url_for("view_meet", meet_id=meet_id))
 
     @app.route("/meet/<meet_id>/event/<event_id>/upload_exam", methods=["POST"])
     def upload_exam_images(meet_id, event_id):
         """
-        Stub for uploading exam images for an event.
-        Currently just logs the files.
+        Handle uploading exam images for an event, storing them on disk,
+        and record file paths in store.json
         """
-        if "files" in request.files:
-            uploaded_files = request.files.getlist("files")
-            print(f"Received {len(uploaded_files)} exam file(s) for event {event_id}")
+        event = get_event(meet_id, event_id)
+        if not event:
+            return "Event not found", 404
+
+        uploaded_files = request.files.getlist("files")
+        saved_file_paths = []
+
+        # Create a folder for this event's exam images
+        exam_folder = os.path.join(BASE_UPLOAD_FOLDER, "exams", meet_id, event_id)
+        os.makedirs(exam_folder, exist_ok=True)
+
+        for file in uploaded_files:
+            if file and file.filename:
+                original_filename = secure_filename(file.filename)
+                unique_name = f"{uuid.uuid4()}_{original_filename}"
+                full_path = os.path.join(exam_folder, unique_name)
+                file.save(full_path)
+                relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
+                saved_file_paths.append(relative_path)
+
+        if saved_file_paths:
+            add_exam_files(meet_id, event_id, saved_file_paths)
+
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
     @app.route("/meet/<meet_id>/event/<event_id>/upload_scores", methods=["POST"])
     def upload_student_scores(meet_id, event_id):
         """
-        Stub for uploading graded student score sheets for an event.
-        Currently just logs the files.
+        Handle uploading score sheets for an event, storing them on disk,
+        and record file paths in store.json
         """
-        if "files" in request.files:
-            uploaded_files = request.files.getlist("files")
-            print(f"Received {len(uploaded_files)} score file(s) for event {event_id}")
+        event = get_event(meet_id, event_id)
+        if not event:
+            return "Event not found", 404
+
+        uploaded_files = request.files.getlist("files")
+        saved_file_paths = []
+
+        # Create a folder for this event's score sheets
+        scores_folder = os.path.join(BASE_UPLOAD_FOLDER, "scores", meet_id, event_id)
+        os.makedirs(scores_folder, exist_ok=True)
+
+        for file in uploaded_files:
+            if file and file.filename:
+                original_filename = secure_filename(file.filename)
+                unique_name = f"{uuid.uuid4()}_{original_filename}"
+                full_path = os.path.join(scores_folder, unique_name)
+                file.save(full_path)
+                relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
+                saved_file_paths.append(relative_path)
+
+        if saved_file_paths:
+            add_score_files(meet_id, event_id, saved_file_paths)
+
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
     return app

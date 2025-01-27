@@ -60,3 +60,6 @@ Thumbs.db
 math_analysis/data/raw.csv
 math_analysis/data/split_files/
 math_analysis/
+uploads/exams/*
+uploads/scores/*
+uploads/topic_list/*

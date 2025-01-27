@@ -22,7 +22,37 @@
           "id": "4b430a6c-1a34-425c-948b-b704236f0e1d",
           "eventName": "Individual Algebra",
           "examTopics": [],
-          "participants": []
+          "participants": [],
+          "examImagePaths": [
+            "exams\\f6cc49df-a28f-4761-b144-63314300d81c\\4b430a6c-1a34-425c-948b-b704236f0e1d\\ab0f984e-e653-4a9a-8fb4-272d8afcf24a_algebra2_analysis.png"
+          ],
+          "scoreImagePaths": [
+            "scores\\f6cc49df-a28f-4761-b144-63314300d81c\\4b430a6c-1a34-425c-948b-b704236f0e1d\\9054facb-4620-4309-a938-127c835133ef_algebra2_analysis.png",
+            "scores\\f6cc49df-a28f-4761-b144-63314300d81c\\4b430a6c-1a34-425c-948b-b704236f0e1d\\b81a2fdb-4aaf-4f90-88bb-189debdab202_frso_analysis.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b159e847-fbcc-45a9-9d10-4528616e8a89",
+      "title": "yo2",
+      "topicList": {},
+      "topicListUploads": [
+        "topic_list\\b159e847-fbcc-45a9-9d10-4528616e8a89\\c47e200e-848b-4375-8e38-bc4a0d19cee1_algebra2_analysis.png"
+      ],
+      "events": [
+        {
+          "id": "522dc507-20d0-410c-962b-b017474b26b4",
+          "eventName": "Jr-Sr 2-Person",
+          "examTopics": [],
+          "participants": [],
+          "examImagePaths": [
+            "exams\\b159e847-fbcc-45a9-9d10-4528616e8a89\\522dc507-20d0-410c-962b-b017474b26b4\\eef4b0d7-6891-46b1-9a80-e96732e9adb6_algebra2_analysis.png",
+            "exams\\b159e847-fbcc-45a9-9d10-4528616e8a89\\522dc507-20d0-410c-962b-b017474b26b4\\b4062a16-70c0-404a-a35e-22404273d14b_frso_analysis.png"
+          ],
+          "scoreImagePaths": [
+            "scores\\b159e847-fbcc-45a9-9d10-4528616e8a89\\522dc507-20d0-410c-962b-b017474b26b4\\73820b01-0bb5-414b-aee2-b121de469a6b_geometry_topic_performance.png"
+          ]
         }
       ]
     }

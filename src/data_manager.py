@@ -44,6 +44,7 @@ def create_meet(title):
         "id": new_meet_id,
         "title": title,
         "topicList": {},  # We'll store parsed topics here eventually
+        "topicListUploads": [],  # We'll store file paths here
         "events": []
     }
 
@@ -76,7 +77,9 @@ def create_event(meet_id, event_name):
                 "id": new_event_id,
                 "eventName": event_name,
                 "examTopics": [],
-                "participants": []
+                "participants": [],
+                "examImagePaths": [],  # store exam file paths
+                "scoreImagePaths": []  # store score sheet file paths
             }
             meet["events"].append(new_event)
             save_data(data)
@@ -95,3 +98,54 @@ def get_event(meet_id, event_id):
                 if event["id"] == event_id:
                     return event
     return None
+
+
+# NEW FUNCTIONS FOR STORING FILE PATHS:
+
+def add_topic_list_files(meet_id, file_paths):
+    """
+    Appends the given file paths to the 'topicListUploads' field in the specified meet.
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            if "topicListUploads" not in meet:
+                meet["topicListUploads"] = []
+            meet["topicListUploads"].extend(file_paths)
+            save_data(data)
+            return
+    # If meet not found, do nothing (or raise an error if desired)
+
+
+def add_exam_files(meet_id, event_id, file_paths):
+    """
+    Appends the given file paths to the 'examImagePaths' for the specified event.
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            for event in meet["events"]:
+                if event["id"] == event_id:
+                    if "examImagePaths" not in event:
+                        event["examImagePaths"] = []
+                    event["examImagePaths"].extend(file_paths)
+                    save_data(data)
+                    return
+    # If not found, do nothing (or handle error)
+
+
+def add_score_files(meet_id, event_id, file_paths):
+    """
+    Appends the given file paths to the 'scoreImagePaths' for the specified event.
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            for event in meet["events"]:
+                if event["id"] == event_id:
+                    if "scoreImagePaths" not in event:
+                        event["scoreImagePaths"] = []
+                    event["scoreImagePaths"].extend(file_paths)
+                    save_data(data)
+                    return
+    # If not found, do nothing (or handle error)

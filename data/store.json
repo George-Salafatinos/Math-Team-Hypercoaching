@@ -55,6 +55,86 @@
           ]
         }
       ]
+    },
+    {
+      "id": "8fcb5c89-5df8-4c87-a61f-e0dae4c27642",
+      "title": "yo3",
+      "topicList": {
+        "Algebra": [
+          "Factoring",
+          "Linear Equations",
+          "Inequalities"
+        ],
+        "Geometry": [
+          "Angles",
+          "Triangles",
+          "Circles"
+        ],
+        "Algebra II": [
+          "Quadratic Equations",
+          "Polynomials",
+          "Logarithms"
+        ],
+        "Precalculus": [
+          "Trigonometry",
+          "Sequences and Series"
+        ]
+      },
+      "topicListUploads": [
+        "topic_list\\8fcb5c89-5df8-4c87-a61f-e0dae4c27642\\dce71f09-a4a2-4780-aaaf-544cefd4720f_algebra2_analysis.png"
+      ],
+      "events": [
+        {
+          "id": "fd2700d3-4615-48c4-bf21-6524fa0942b7",
+          "eventName": "Frosh-Soph 2-Person",
+          "examTopics": [
+            {
+              "questionNumber": 1,
+              "topics": [
+                "Algebra - Factoring"
+              ]
+            },
+            {
+              "questionNumber": 2,
+              "topics": [
+                "Algebra - Linear Equations"
+              ]
+            },
+            {
+              "questionNumber": 3,
+              "topics": [
+                "Geometry - Triangles"
+              ]
+            }
+          ],
+          "participants": [
+            {
+              "studentName": "Alice",
+              "gradeLevel": "freshman",
+              "pointsPerTopic": {
+                "Algebra - Factoring": 10,
+                "Algebra - Linear Equations": 5,
+                "Geometry - Triangles": 0
+              }
+            },
+            {
+              "studentName": "Bob",
+              "gradeLevel": "sophomore",
+              "pointsPerTopic": {
+                "Algebra - Factoring": 8,
+                "Algebra - Linear Equations": 10,
+                "Geometry - Triangles": 10
+              }
+            }
+          ],
+          "examImagePaths": [
+            "exams\\8fcb5c89-5df8-4c87-a61f-e0dae4c27642\\fd2700d3-4615-48c4-bf21-6524fa0942b7\\d8063619-5999-4006-b0a3-f7f5c1ee2c22_frso_analysis.png"
+          ],
+          "scoreImagePaths": [
+            "scores\\8fcb5c89-5df8-4c87-a61f-e0dae4c27642\\fd2700d3-4615-48c4-bf21-6524fa0942b7\\6815993c-00f4-47d4-b1ab-a5ec0d30496a_algebra2_analysis.png"
+          ]
+        }
+      ]
     }
   ]
 }

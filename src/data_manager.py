@@ -43,8 +43,8 @@ def create_meet(title):
     new_meet = {
         "id": new_meet_id,
         "title": title,
-        "topicList": {},  # We'll store parsed topics here eventually
-        "topicListUploads": [],  # We'll store file paths here
+        "topicList": {},          # We'll store parsed topics here eventually
+        "topicListUploads": [],   # We'll store file paths here
         "events": []
     }
 
@@ -76,10 +76,10 @@ def create_event(meet_id, event_name):
             new_event = {
                 "id": new_event_id,
                 "eventName": event_name,
-                "examTopics": [],
-                "participants": [],
-                "examImagePaths": [],  # store exam file paths
-                "scoreImagePaths": []  # store score sheet file paths
+                "examTopics": [],          # We'll store parsed exam Q->topic data
+                "participants": [],        # We'll store participant scores
+                "examImagePaths": [],
+                "scoreImagePaths": []
             }
             meet["events"].append(new_event)
             save_data(data)
@@ -100,8 +100,6 @@ def get_event(meet_id, event_id):
     return None
 
 
-# NEW FUNCTIONS FOR STORING FILE PATHS:
-
 def add_topic_list_files(meet_id, file_paths):
     """
     Appends the given file paths to the 'topicListUploads' field in the specified meet.
@@ -114,7 +112,6 @@ def add_topic_list_files(meet_id, file_paths):
             meet["topicListUploads"].extend(file_paths)
             save_data(data)
             return
-    # If meet not found, do nothing (or raise an error if desired)
 
 
 def add_exam_files(meet_id, event_id, file_paths):
@@ -131,7 +128,6 @@ def add_exam_files(meet_id, event_id, file_paths):
                     event["examImagePaths"].extend(file_paths)
                     save_data(data)
                     return
-    # If not found, do nothing (or handle error)
 
 
 def add_score_files(meet_id, event_id, file_paths):
@@ -148,4 +144,57 @@ def add_score_files(meet_id, event_id, file_paths):
                     event["scoreImagePaths"].extend(file_paths)
                     save_data(data)
                     return
-    # If not found, do nothing (or handle error)
+
+
+# ------------------------------------------------------------------------
+# NEW FUNCTIONS TO STORE GPT-PARSED DATA
+# ------------------------------------------------------------------------
+
+def update_meet_topic_list(meet_id, parsed_topics):
+    """
+    Overwrites or updates the meet's "topicList" field with the parsed topics dictionary.
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            meet["topicList"] = parsed_topics
+            save_data(data)
+            return
+
+
+def update_event_exam_topics(meet_id, event_id, exam_topics):
+    """
+    Overwrites or updates the event's "examTopics" with the parsed question->topic mappings.
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            for event in meet["events"]:
+                if event["id"] == event_id:
+                    event["examTopics"] = exam_topics
+                    save_data(data)
+                    return
+
+
+def add_participant_scores(meet_id, event_id, participant_scores):
+    """
+    Appends participants from GPT parse to the event's participants array.
+    Example of participant_scores:
+    [
+      {
+        "studentName": "...",
+        "gradeLevel": "...",
+        "pointsPerTopic": {...}
+      },
+      ...
+    ]
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            for event in meet["events"]:
+                if event["id"] == event_id:
+                    # Just append them (or you can do merging logic if needed)
+                    event["participants"].extend(participant_scores)
+                    save_data(data)
+                    return

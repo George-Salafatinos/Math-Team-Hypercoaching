@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Math Team Dashboard</title>
+</head>
+<body>
+    <header>
+        <h1>Math Team Dashboard</h1>
+        <nav>
+            <!-- Links to our primary routes -->
+            <a href="{{ url_for('home_page') }}">Home</a> |
+            <a href="{{ url_for('add_meet_route') }}">Add Meet</a>
+        </nav>
+        <hr>
+    </header>
+
+    <!-- This is where child templates inject their content -->
+    {% block content %}{% endblock %}
+</body>
+</html>

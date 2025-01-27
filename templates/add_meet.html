@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Add New Meet</h2>
+<form method="POST">
+    <label for="title">Meet Title:</label>
+    <input type="text" id="title" name="title" required>
+    <button type="submit">Create Meet</button>
+</form>
+{% endblock %}

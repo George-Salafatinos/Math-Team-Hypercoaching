@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>All Meets</h2>
+<ul>
+  {% for meet in meets %}
+    <li>
+      <a href="{{ url_for('view_meet', meet_id=meet.id) }}">
+        {{ meet.title }}
+      </a>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

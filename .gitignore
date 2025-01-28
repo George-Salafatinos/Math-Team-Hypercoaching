@@ -63,3 +63,5 @@ math_analysis/
 uploads/exams/*
 uploads/scores/*
 uploads/topic_list/*
+data/test_store.json
+data/blank_store.json

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Dashboard</h2>
+
+<!-- 1. Topic Accuracy Table -->
+<h3>Topic Accuracy Across Meets</h3>
+<table border="1">
+  <tr>
+    <th>Topic</th>
+    <th>Correct</th>
+    <th>Attempted</th>
+    <th>Accuracy (%)</th>
+  </tr>
+  {% for topic, stats in topic_accuracy.items() %}
+  <tr>
+    <td>{{ topic }}</td>
+    <td>{{ stats.correct }}</td>
+    <td>{{ stats.attempted }}</td>
+    <td>{{ (stats.accuracy * 100)|round(1) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<!-- 2. Event Scores Summary -->
+<h3>Event Scores Summary</h3>
+<table border="1">
+  <tr>
+    <th>Meet</th>
+    <th>Event Name</th>
+    <th>Total Questions</th>
+    <th>Total Correct (All Participants)</th>
+    <th>Total Participants</th>
+  </tr>
+  {% for summary in event_summaries %}
+  <tr>
+    <td>{{ summary.meetTitle }}</td>
+    <td>{{ summary.eventName }}</td>
+    <td>{{ summary.totalQuestions }}</td>
+    <td>{{ summary.totalCorrect }}</td>
+    <td>{{ summary.totalParticipants }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<!-- 3. Individual Breakdowns -->
+<h3>Individual Participant Breakdowns</h3>
+<table border="1">
+  <tr>
+    <th>Name</th>
+    <th>Grade</th>
+    <th># Events</th>
+    <th>Total Correct</th>
+    <th>Total Attempted</th>
+    <th>Accuracy (%)</th>
+  </tr>
+  {% for participant in participant_breakdowns %}
+  <tr>
+    <td>{{ participant.studentName }}</td>
+    <td>{{ participant.gradeLevel }}</td>
+    <td>{{ participant.meetsEventsParticipated }}</td>
+    <td>{{ participant.totalCorrect }}</td>
+    <td>{{ participant.totalQuestionsAttempted }}</td>
+    <td>
+      {% if participant.totalQuestionsAttempted > 0 %}
+        {{ (participant.totalCorrect / participant.totalQuestionsAttempted * 100) | round(1) }}
+      {% else %}
+        0.0
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% endblock %}

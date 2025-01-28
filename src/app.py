@@ -22,6 +22,12 @@ from src.gpt_services import (
     parse_single_student_exam_image
 )
 
+from src.dashboard_logic import (
+    get_topic_accuracy_across_meets,
+    get_event_scores_summary,
+    get_individual_breakdowns
+)
+
 FIXED_EVENTS = [
     "Individual Algebra",
     "Individual Geometry",
@@ -228,6 +234,21 @@ def create_app():
 
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
+    @app.route("/dashboard")
+    def dashboard_view():
+        """
+        Renders the dashboard page with aggregated stats.
+        """
+        topic_accuracy = get_topic_accuracy_across_meets()
+        event_summaries = get_event_scores_summary()
+        participant_breakdowns = get_individual_breakdowns()
+
+        return render_template(
+            "dashboard.html",
+            topic_accuracy=topic_accuracy,
+            event_summaries=event_summaries,
+            participant_breakdowns=participant_breakdowns
+        )
 
 
     return app

@@ -1,7 +1,12 @@
 import os
 import uuid
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+
+load_dotenv()  # Load .env
+BASE_UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")
+os.makedirs(BASE_UPLOAD_FOLDER, exist_ok=True)
 
 from src.data_manager import (
     load_data,
@@ -14,14 +19,16 @@ from src.data_manager import (
     add_score_files,
     update_meet_topic_list,
     update_event_exam_topics,
-    add_participant_scores
+    add_participant_scores,
+    # Extra for deleting events/participants
+    delete_event,
+    delete_participant
 )
 from src.gpt_services import (
     parse_topic_list_images,
     parse_exam_images,
     parse_single_student_exam_image
 )
-
 from src.dashboard_logic import (
     get_topic_accuracy_across_meets,
     get_event_scores_summary,
@@ -45,9 +52,8 @@ def create_app():
                 template_folder="../templates",
                 static_folder="../static")
 
-    # Ensure there's a folder to store uploads
-    BASE_UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")
-    os.makedirs(BASE_UPLOAD_FOLDER, exist_ok=True)
+    # For flash messages
+    app.secret_key = os.getenv("FLASK_SECRET_KEY", "some_dev_secret")
 
     @app.route("/")
     def home_page():
@@ -61,28 +67,35 @@ def create_app():
             title = request.form.get("title")
             if title:
                 new_meet_id = create_meet(title)
+                flash("Meet created successfully!", "success")
                 return redirect(url_for("view_meet", meet_id=new_meet_id))
+            else:
+                flash("Please enter a valid meet title.", "error")
         return render_template("add_meet.html")
 
     @app.route("/meet/<meet_id>")
     def view_meet(meet_id):
         meet = get_meet(meet_id)
         if not meet:
-            return "Meet not found", 404
+            flash("Meet not found.", "error")
+            return redirect(url_for("home_page"))
         return render_template("meet.html", meet=meet)
 
     @app.route("/meet/<meet_id>/create_event", methods=["GET", "POST"])
     def create_event_route(meet_id):
         meet = get_meet(meet_id)
         if not meet:
-            return "Meet not found", 404
+            flash("Meet not found.", "error")
+            return redirect(url_for("home_page"))
 
         if request.method == "POST":
             event_name = request.form.get("event_name")
             if event_name in FIXED_EVENTS:
                 event_id = create_event(meet_id, event_name)
                 if event_id:
+                    flash(f"Event '{event_name}' created!", "success")
                     return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
+            flash("Please select a valid event from the list.", "error")
             return redirect(url_for("create_event_route", meet_id=meet_id))
 
         return render_template("create_event.html", 
@@ -93,26 +106,25 @@ def create_app():
     def view_event(meet_id, event_id):
         event = get_event(meet_id, event_id)
         if not event:
-            return "Event not found", 404
+            flash("Event not found.", "error")
+            return redirect(url_for("view_meet", meet_id=meet_id))
         return render_template("event.html", meet_id=meet_id, event=event)
 
-    # ---------- FILE UPLOAD + GPT STUB INTEGRATION ----------
+    # ---------- FILE UPLOAD + GPT INTEGRATION ----------
 
     @app.route("/meet/<meet_id>/upload_topic_list", methods=["POST"])
     def upload_topic_list(meet_id):
-        """
-        1. Save uploaded topic-list images to disk.
-        2. Store file paths in JSON (data_manager).
-        3. Call GPT stub (parse_topic_list_images).
-        4. Update the meet's "topicList" with the stubbed parse result.
-        """
         meet = get_meet(meet_id)
         if not meet:
-            return "Meet not found", 404
+            flash("Meet not found.", "error")
+            return redirect(url_for("home_page"))
 
         uploaded_files = request.files.getlist("files")
-        saved_file_paths = []
+        if not uploaded_files or all(f.filename == "" for f in uploaded_files):
+            flash("No files selected.", "error")
+            return redirect(url_for("view_meet", meet_id=meet_id))
 
+        saved_file_paths = []
         topic_list_folder = os.path.join(BASE_UPLOAD_FOLDER, "topic_list", meet_id)
         os.makedirs(topic_list_folder, exist_ok=True)
 
@@ -125,36 +137,34 @@ def create_app():
                 relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
                 saved_file_paths.append(relative_path)
 
-        # Save paths in JSON
         if saved_file_paths:
             add_topic_list_files(meet_id, saved_file_paths)
-
-            # ---- GPT Stub Parse ----
-            # parse the newly uploaded images (or all the topic-list files if needed)
-            parsed_topics = parse_topic_list_images(saved_file_paths)
-            # store the stub result in "topicList"
-            update_meet_topic_list(meet_id, parsed_topics)
+            # GPT parse
+            try:
+                parsed_topics = parse_topic_list_images(saved_file_paths)
+                update_meet_topic_list(meet_id, parsed_topics)
+                flash("Topic list uploaded and parsed successfully!", "success")
+            except Exception as e:
+                flash(f"GPT parse error: {str(e)}", "error")
 
         return redirect(url_for("view_meet", meet_id=meet_id))
 
     @app.route("/meet/<meet_id>/event/<event_id>/upload_exam", methods=["POST"])
     def upload_exam_images(meet_id, event_id):
-        """
-        1. Save uploaded exam images.
-        2. Store file paths in JSON.
-        3. Call GPT stub (parse_exam_images).
-        4. Update event's examTopics with the stub result.
-        """
         event = get_event(meet_id, event_id)
         if not event:
-            return "Event not found", 404
+            flash("Event not found.", "error")
+            return redirect(url_for("view_meet", meet_id=meet_id))
 
         uploaded_files = request.files.getlist("files")
-        saved_file_paths = []
+        if not uploaded_files or all(f.filename == "" for f in uploaded_files):
+            flash("No files selected.", "error")
+            return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
         exam_folder = os.path.join(BASE_UPLOAD_FOLDER, "exams", meet_id, event_id)
         os.makedirs(exam_folder, exist_ok=True)
 
+        saved_file_paths = []
         for file in uploaded_files:
             if file and file.filename:
                 original_filename = secure_filename(file.filename)
@@ -166,38 +176,40 @@ def create_app():
 
         if saved_file_paths:
             add_exam_files(meet_id, event_id, saved_file_paths)
-
-            # ---- GPT Stub Parse ----
-            # We might pass the meet's known topicList or just an empty dict
+            # GPT parse
+            from src.data_manager import get_meet
             meet = get_meet(meet_id)
             known_list = meet.get("topicList", {}) if meet else {}
-            exam_data = parse_exam_images(saved_file_paths, known_list)
-            update_event_exam_topics(meet_id, event_id, exam_data)
+            try:
+                exam_data = parse_exam_images(saved_file_paths, known_list)
+                update_event_exam_topics(meet_id, event_id, exam_data)
+                flash("Exam images uploaded and parsed successfully!", "success")
+            except Exception as e:
+                flash(f"GPT parse error: {str(e)}", "error")
 
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
-    
+
+    # ---------- SINGLE-STUDENT SCORE UPLOAD ----------
+
     @app.route("/meet/<meet_id>/event/<event_id>/upload_single_student_score", methods=["POST"])
     def upload_single_student_score(meet_id, event_id):
-        """
-        1. Receives studentName, gradeLevel, single scoreFile (the student's exam sheet).
-        2. Saves the file in "uploads/scores/<meet_id>/<event_id>".
-        3. Calls GPT to parse correct/incorrect questions for this 1 student.
-        4. Directly stores that info in the event's 'participants' array.
-        5. Redirects back to event page or success page.
-        """
-        
+        from src.data_manager import (
+            get_event, add_score_files, add_participant_scores
+        )
+
         event_data = get_event(meet_id, event_id)
         if not event_data:
-            return "Event not found", 404
+            flash("Event not found.", "error")
+            return redirect(url_for("view_meet", meet_id=meet_id))
 
         student_name = request.form.get("studentName")
         grade_level = request.form.get("gradeLevel")
         uploaded_file = request.files.get("scoreFile")
 
         if not (student_name and grade_level and uploaded_file):
-            return "Missing form data or file", 400
+            flash("Missing form data or file.", "error")
+            return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
-        # Create folder if not exists
         scores_folder = os.path.join(BASE_UPLOAD_FOLDER, "scores", meet_id, event_id)
         os.makedirs(scores_folder, exist_ok=True)
 
@@ -209,36 +221,30 @@ def create_app():
         relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
         add_score_files(meet_id, event_id, [relative_path])
 
-        # Known exam data:
+        # GPT parse
         known_exam_data = event_data.get("examTopics", [])
+        try:
+            parse_result = parse_single_student_exam_image(relative_path, known_exam_data)
+            correct_qs = parse_result.get("correctQuestions", [])
+            incorrect_qs = parse_result.get("incorrectQuestions", [])
 
-        # GPT parse => correct/incorrect/unattempted
-        parse_result = parse_single_student_exam_image(relative_path, known_exam_data)
-
-        correct_qs = parse_result.get("correctQuestions", [])
-        incorrect_qs = parse_result.get("incorrectQuestions", [])
-        #unattempted_qs = parse_result.get("unattemptedQuestions", [])
-
-        # Instead of computing "pointsPerTopic", 
-        # we store the question correctness directly:
-        new_participant = {
-            "studentName": student_name,
-            "gradeLevel": grade_level,
-            "correctQuestions": correct_qs,
-            "incorrectQuestions": incorrect_qs,
-            #"unattemptedQuestions": unattempted_qs
-        }
-
-        # Now append this single participant to event["participants"]
-        add_participant_scores(meet_id, event_id, [new_participant])
+            new_participant = {
+                "studentName": student_name,
+                "gradeLevel": grade_level,
+                "correctQuestions": correct_qs,
+                "incorrectQuestions": incorrect_qs
+            }
+            add_participant_scores(meet_id, event_id, [new_participant])
+            flash(f"Score sheet parsed for {student_name}!", "success")
+        except Exception as e:
+            flash(f"GPT parse error: {str(e)}", "error")
 
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
+    # ---------- DASHBOARD ----------
+
     @app.route("/dashboard")
     def dashboard_view():
-        """
-        Renders the dashboard page with aggregated stats.
-        """
         topic_accuracy = get_topic_accuracy_across_meets()
         event_summaries = get_event_scores_summary()
         participant_breakdowns = get_individual_breakdowns()
@@ -250,6 +256,31 @@ def create_app():
             participant_breakdowns=participant_breakdowns
         )
 
+    # ---------- OPTIONAL: DELETION ROUTES ----------
+
+    @app.route("/meet/<meet_id>/delete_event/<event_id>", methods=["POST"])
+    def remove_event(meet_id, event_id):
+        ok = delete_event(meet_id, event_id)
+        if ok:
+            flash("Event deleted successfully!", "success")
+        else:
+            flash("Unable to delete event.", "error")
+        return redirect(url_for("view_meet", meet_id=meet_id))
+
+    @app.route("/meet/<meet_id>/event/<event_id>/delete_participant", methods=["POST"])
+    def remove_participant(meet_id, event_id):
+        student_name = request.form.get("studentName")
+        grade_level = request.form.get("gradeLevel")
+        if not (student_name and grade_level):
+            flash("Missing participant info.", "error")
+            return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
+
+        ok = delete_participant(meet_id, event_id, student_name, grade_level)
+        if ok:
+            flash("Participant removed successfully!", "success")
+        else:
+            flash("Could not remove participant.", "error")
+        return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
     return app
 

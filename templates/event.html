@@ -7,40 +7,72 @@
 
 <hr>
 
+<!-- Exam Upload -->
 <h3>Upload Exam Images</h3>
 <form action="{{ url_for('upload_exam_images', meet_id=meet_id, event_id=event.id) }}" 
-      method="POST" 
-      enctype="multipart/form-data">
-    <input type="file" name="files" multiple>
-    <button type="submit">Submit Exam Images</button>
+      method="POST" enctype="multipart/form-data" class="mb-4">
+  <div class="mb-3">
+    <input type="file" name="files" multiple class="form-control">
+  </div>
+  <button type="submit" class="btn btn-secondary">Submit Exam Images</button>
 </form>
 
-<h3>Upload Student Score Sheets</h3>
-<form action="{{ url_for('upload_single_student_score', meet_id=meet_id, event_id=event.id) }}"
-      method="POST" enctype="multipart/form-data">
-    <div>
-        <label>Student Name:</label>
-        <input type="text" name="studentName" required>
-    </div>
-    <div>
-        <label>Grade Level:</label>
-        <select name="gradeLevel">
-            <option value="freshman">freshman</option>
-            <option value="sophomore">sophomore</option>
-            <option value="junior">junior</option>
-            <option value="senior">senior</option>
-        </select>
-    </div>
-    <div>
-        <label>Answer Sheet Image:</label>
-        <input type="file" name="scoreFile" required>
-    </div>
-    <button type="submit">Submit Single Student Score</button>
-</form>
-
+<!-- Show examTopics from GPT (if any) -->
+{% if event.examTopics %}
+<h4>Exam Topics (Parsed)</h4>
+<pre>{{ event.examTopics|tojson(indent=2) }}</pre>
+{% endif %}
 
 <hr>
-<p>
-(This page will later display parsed exam topics, participants, and scores.)
-</p>
+
+<!-- Single Student Score -->
+<h3>Upload a Single Student's Score Sheet</h3>
+<form action="{{ url_for('upload_single_student_score', meet_id=meet_id, event_id=event.id) }}"
+      method="POST" enctype="multipart/form-data" class="mb-4">
+  <div class="mb-3">
+    <label>Student Name:</label>
+    <input type="text" name="studentName" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label>Grade Level:</label>
+    <select name="gradeLevel" class="form-select">
+      <option value="freshman">freshman</option>
+      <option value="sophomore">sophomore</option>
+      <option value="junior">junior</option>
+      <option value="senior">senior</option>
+    </select>
+  </div>
+  <div class="mb-3">
+    <label>Answer Sheet Image:</label>
+    <input type="file" name="scoreFile" required class="form-control">
+  </div>
+  <button type="submit" class="btn btn-secondary">Submit Single Student Score</button>
+</form>
+
+<h3>Participants</h3>
+{% if event.participants %}
+  <ul class="list-group">
+    {% for p in event.participants %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ p.studentName }} ({{ p.gradeLevel }})</strong>
+          <br>
+          Correct: {{ p.correctQuestions|length }} 
+          | Incorrect: {{ p.incorrectQuestions|length }}
+        </div>
+        <!-- Optional Delete Participant -->
+        <form action="{{ url_for('remove_participant', meet_id=meet_id, event_id=event.id) }}" method="POST">
+          <input type="hidden" name="studentName" value="{{ p.studentName }}">
+          <input type="hidden" name="gradeLevel" value="{{ p.gradeLevel }}">
+          <button type="submit" class="btn btn-danger btn-sm"
+                  onclick="return confirm('Remove this participant?')">
+            Remove
+          </button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No participants yet.</p>
+{% endif %}
 {% endblock %}

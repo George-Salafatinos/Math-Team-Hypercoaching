@@ -1,0 +1,40 @@
+/* static/styles.css */
+
+/* Example custom overrides and minor styling additions */
+
+/* Make code blocks or pre tags a bit nicer, if you want them. */
+pre {
+    background-color: #f8f9fa; /* Slightly gray background */
+    padding: 1rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+  
+  /* Adjust the margin for headings in certain sections */
+  h2, h3, h4 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Custom class for narrower forms */
+  .form-narrow {
+    max-width: 400px;
+    margin: 0 auto; /* center the form */
+  }
+  
+  /* If you want to slightly tweak the navbar brand color, or something similar:
+  .navbar-brand {
+    color: #ffc107 !important; 
+  }
+  */
+  
+  /* If you want your .alert to have a custom animation, you could add it here.
+     But usually the default Bootstrap fade is enough.
+  */
+  
+  /* Example table row hover highlight, if desired:
+  table tbody tr:hover {
+    background-color: #efefef;
+  }
+  */
+  

@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>All Meets</h2>
-<ul>
-  {% for meet in meets %}
-    <li>
-      <a href="{{ url_for('view_meet', meet_id=meet.id) }}">
-        {{ meet.title }}
-      </a>
-    </li>
-  {% endfor %}
-</ul>
+<h1 class="mb-3">All Meets</h1>
+{% if meets %}
+  <ul class="list-group">
+    {% for meet in meets %}
+      <li class="list-group-item">
+        <a href="{{ url_for('view_meet', meet_id=meet.id) }}">
+          {{ meet.title }}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No meets yet. <a href="{{ url_for('add_meet_route') }}">Add one!</a></p>
+{% endif %}
 {% endblock %}

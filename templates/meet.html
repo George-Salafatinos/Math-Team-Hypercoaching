@@ -7,29 +7,47 @@
 
 <hr>
 
-<!-- Link to create a new event -->
-<a href="{{ url_for('create_event_route', meet_id=meet.id) }}">Create a New Event</a>
+<!-- Topic List Upload -->
+<h3>Upload Topic List</h3>
+<form action="{{ url_for('upload_topic_list', meet_id=meet.id) }}" method="POST" enctype="multipart/form-data" class="mb-3">
+  <div class="mb-3">
+    <input type="file" name="files" multiple class="form-control">
+  </div>
+  <button type="submit" class="btn btn-secondary">Submit Topic List</button>
+</form>
 
-<h3>Events in this Meet:</h3>
-{% if meet.events %}
-    <ul>
-        {% for event in meet.events %}
-            <li>
-                <a href="{{ url_for('view_event', meet_id=meet.id, event_id=event.id) }}">
-                    {{ event.eventName }}
-                </a>
-            </li>
-        {% endfor %}
-    </ul>
-{% else %}
-    <p>No events yet.</p>
+<!-- Existing topic list info (optional) -->
+{% if meet.topicList %}
+<p><strong>Parsed Topics:</strong></p>
+<pre>{{ meet.topicList|tojson(indent=2) }}</pre>
 {% endif %}
 
 <hr>
-<!-- Stub for uploading topic list images for the entire meet -->
-<h3>Upload Topic List</h3>
-<form action="{{ url_for('upload_topic_list', meet_id=meet.id) }}" method="POST" enctype="multipart/form-data">
-    <input type="file" name="files" multiple>
-    <button type="submit">Submit Topic List Images</button>
-</form>
+
+<!-- Create Event -->
+<a class="btn btn-primary" href="{{ url_for('create_event_route', meet_id=meet.id) }}">Create a New Event</a>
+
+<h3 class="mt-4">Events in this Meet:</h3>
+{% if meet.events %}
+  <ul class="list-group">
+    {% for event in meet.events %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <a href="{{ url_for('view_event', meet_id=meet.id, event_id=event.id) }}">
+            {{ event.eventName }}
+          </a>
+        </div>
+        <!-- Optional delete button -->
+        <form action="{{ url_for('remove_event', meet_id=meet.id, event_id=event.id) }}" method="POST" class="ms-3">
+          <button type="submit" class="btn btn-danger btn-sm"
+                  onclick="return confirm('Delete this event?')">
+            Delete
+          </button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No events yet.</p>
+{% endif %}
 {% endblock %}

@@ -3,16 +3,16 @@
 {% block content %}
 <h2>Create New Event</h2>
 
-<form method="POST">
-    <label for="event_name">Select an Event:</label>
-    <select id="event_name" name="event_name" required>
-        <option value="">--Choose an Event--</option>
-        {% for ev in possible_events %}
+<form method="POST" class="mt-3">
+  <div class="mb-3">
+    <label for="event_name" class="form-label">Select an Event:</label>
+    <select id="event_name" name="event_name" required class="form-select">
+      <option value="">--Choose an Event--</option>
+      {% for ev in possible_events %}
         <option value="{{ ev }}">{{ ev }}</option>
-        {% endfor %}
+      {% endfor %}
     </select>
-    <br><br>
-    <button type="submit">Create Event</button>
+  </div>
+  <button type="submit" class="btn btn-primary">Create Event</button>
 </form>
-
 {% endblock %}

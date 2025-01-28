@@ -2,9 +2,11 @@
 
 {% block content %}
 <h2>Add New Meet</h2>
-<form method="POST">
-    <label for="title">Meet Title:</label>
-    <input type="text" id="title" name="title" required>
-    <button type="submit">Create Meet</button>
+<form method="POST" class="mt-3">
+  <div class="mb-3">
+    <label for="title" class="form-label">Meet Title:</label>
+    <input type="text" id="title" name="title" required class="form-control">
+  </div>
+  <button type="submit" class="btn btn-primary">Create Meet</button>
 </form>
 {% endblock %}

@@ -19,7 +19,7 @@ from src.data_manager import (
 from src.gpt_services import (
     parse_topic_list_images,
     parse_exam_images,
-    parse_student_scores_images
+    parse_single_student_exam_image
 )
 
 FIXED_EVENTS = [
@@ -169,45 +169,66 @@ def create_app():
             update_event_exam_topics(meet_id, event_id, exam_data)
 
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
-
-    @app.route("/meet/<meet_id>/event/<event_id>/upload_scores", methods=["POST"])
-    def upload_student_scores(meet_id, event_id):
+    
+    @app.route("/meet/<meet_id>/event/<event_id>/upload_single_student_score", methods=["POST"])
+    def upload_single_student_score(meet_id, event_id):
         """
-        1. Save uploaded score sheets.
-        2. Store file paths in JSON.
-        3. Call GPT stub (parse_student_scores_images).
-        4. Add participants' scores to event.
+        1. Receives studentName, gradeLevel, single scoreFile (the student's exam sheet).
+        2. Saves the file in "uploads/scores/<meet_id>/<event_id>".
+        3. Calls GPT to parse correct/incorrect questions for this 1 student.
+        4. Directly stores that info in the event's 'participants' array.
+        5. Redirects back to event page or success page.
         """
-        event = get_event(meet_id, event_id)
-        if not event:
+        
+        event_data = get_event(meet_id, event_id)
+        if not event_data:
             return "Event not found", 404
 
-        uploaded_files = request.files.getlist("files")
-        saved_file_paths = []
+        student_name = request.form.get("studentName")
+        grade_level = request.form.get("gradeLevel")
+        uploaded_file = request.files.get("scoreFile")
 
+        if not (student_name and grade_level and uploaded_file):
+            return "Missing form data or file", 400
+
+        # Create folder if not exists
         scores_folder = os.path.join(BASE_UPLOAD_FOLDER, "scores", meet_id, event_id)
         os.makedirs(scores_folder, exist_ok=True)
 
-        for file in uploaded_files:
-            if file and file.filename:
-                original_filename = secure_filename(file.filename)
-                unique_name = f"{uuid.uuid4()}_{original_filename}"
-                full_path = os.path.join(scores_folder, unique_name)
-                file.save(full_path)
-                relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
-                saved_file_paths.append(relative_path)
+        original_filename = secure_filename(uploaded_file.filename)
+        unique_name = f"{uuid.uuid4()}_{original_filename}"
+        full_path = os.path.join(scores_folder, unique_name)
+        uploaded_file.save(full_path)
 
-        if saved_file_paths:
-            add_score_files(meet_id, event_id, saved_file_paths)
+        relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
+        add_score_files(meet_id, event_id, [relative_path])
 
-            # ---- GPT Stub Parse ----
-            # We might pass the event's examTopics or just an empty list
-            event_data = get_event(meet_id, event_id)
-            known_exam_data = event_data.get("examTopics", []) if event_data else []
-            participant_scores = parse_student_scores_images(saved_file_paths, known_exam_data)
-            add_participant_scores(meet_id, event_id, participant_scores)
+        # Known exam data:
+        known_exam_data = event_data.get("examTopics", [])
+
+        # GPT parse => correct/incorrect/unattempted
+        parse_result = parse_single_student_exam_image(relative_path, known_exam_data)
+
+        correct_qs = parse_result.get("correctQuestions", [])
+        incorrect_qs = parse_result.get("incorrectQuestions", [])
+        #unattempted_qs = parse_result.get("unattemptedQuestions", [])
+
+        # Instead of computing "pointsPerTopic", 
+        # we store the question correctness directly:
+        new_participant = {
+            "studentName": student_name,
+            "gradeLevel": grade_level,
+            "correctQuestions": correct_qs,
+            "incorrectQuestions": incorrect_qs,
+            #"unattemptedQuestions": unattempted_qs
+        }
+
+        # Now append this single participant to event["participants"]
+        add_participant_scores(meet_id, event_id, [new_participant])
 
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
+
+
 
     return app
 

@@ -16,12 +16,28 @@
 </form>
 
 <h3>Upload Student Score Sheets</h3>
-<form action="{{ url_for('upload_student_scores', meet_id=meet_id, event_id=event.id) }}"
-      method="POST"
-      enctype="multipart/form-data">
-    <input type="file" name="files" multiple>
-    <button type="submit">Submit Score Sheets</button>
+<form action="{{ url_for('upload_single_student_score', meet_id=meet_id, event_id=event.id) }}"
+      method="POST" enctype="multipart/form-data">
+    <div>
+        <label>Student Name:</label>
+        <input type="text" name="studentName" required>
+    </div>
+    <div>
+        <label>Grade Level:</label>
+        <select name="gradeLevel">
+            <option value="freshman">freshman</option>
+            <option value="sophomore">sophomore</option>
+            <option value="junior">junior</option>
+            <option value="senior">senior</option>
+        </select>
+    </div>
+    <div>
+        <label>Answer Sheet Image:</label>
+        <input type="file" name="scoreFile" required>
+    </div>
+    <button type="submit">Submit Single Student Score</button>
 </form>
+
 
 <hr>
 <p>

@@ -18,6 +18,32 @@ class StudentScores(BaseModel):
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
+# We define a helper to find which courses an event covers
+def get_event_courses(event_name):
+    """
+    Return a list of courses for the given event name.
+    For example:
+      "Individual Algebra" -> ["Algebra"]
+      "Frosh-Soph 2-Person" -> ["Algebra", "Geometry"]
+      ...
+    """
+    # You can expand or rename these as you like
+    if "Algebra" in event_name and "II" not in event_name:
+        return ["Algebra"]
+    if "Geometry" in event_name:
+        return ["Geometry"]
+    if "Algebra II" in event_name:
+        return ["Algebra II"]
+    if "Precalculus" in event_name:
+        return ["Precalculus"]
+    if "Frosh-Soph" in event_name:
+        return ["Algebra", "Geometry"]
+    if "Jr-Sr" in event_name:
+        return ["Algebra II", "Precalculus"]
+    if "Calculator" in event_name:
+        return ["Algebra", "Geometry", "Algebra II", "Precalculus"]
+    # fallback
+    return []
 
 def parse_topic_list_images(file_paths):
     """
@@ -103,26 +129,41 @@ def parse_topic_list_images(file_paths):
         }
 
 
-def parse_exam_images(file_paths, known_topic_list):
+
+def parse_exam_images(file_paths, known_topic_list, event_name=""):
     """
-    Sends exam images + known topics to GPT-4o-mini, returning JSON with questionNumber->topics.
-    Example:
-    [
-      {"questionNumber": 1, "topics": ["Algebra - Factoring"]},
-      ...
-    ]
+    We adapt the prompt to say:
+    'This exam is on the <courses> topics.'
+    Then we require 2-4 topics per question.
     """
+    # Determine courses from event name
+    courses = get_event_courses(event_name)
+    courses_str = ", ".join(courses) if courses else "various"
+
+    images_b64 = []
+    for path in file_paths:
+        full_path = os.path.join("uploads", path)
+        with open(full_path, "rb") as f:
+            b64_data = base64.b64encode(f.read()).decode("utf-8")
+            images_b64.append({"filename": path, "content_b64": b64_data})
+
+    system_prompt = (
+        "You are an AI that reads exam images (base64), "
+        "identifies each question number, and tags them with 2-4 relevant math topics.\n"
+        "Return valid JSON only.\n"
+    )
+
+    # We embed the event's courses in the user message
+    user_text = (
+        f"This exam is on the {courses_str} topics. We also have a known topic list to guide labeling.\n"
+        "Please identify each question (questionNumber) and list 2-4 relevant topics, returning valid JSON only.\n"
+        "Example:\n"
+        "[\n  {\"questionNumber\": 1, \"topics\": [\"Algebra - Factoring\", \"Geometry - angle measure\"]},\n  ...\n]\n\n"
+        f"Known topic list for reference: {json.dumps(known_topic_list)}"
+    )
+
     content_list = [
-        {
-            "type": "text",
-            "text": (
-                "We have exam images. We also have a known topic list to guide labeling. "
-                "Please identify each question (questionNumber) and list relevant topics, returning valid JSON only. List between two and four topics per question. \n"
-                "Example:\n"
-                "[\n  {\"questionNumber\": 1, \"topics\": [\"Algebra - Factoring, Geometry - area of rectangles\"]},\n  ...\n]\n\n"
-                f"Known topic list for reference: {json.dumps(known_topic_list)}"
-            ),
-        }
+        {"type": "text", "text": user_text},
     ]
 
     for path in file_paths:

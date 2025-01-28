@@ -97,30 +97,30 @@
 
 <!-- Script to initialize the chart -->
 <script>
-  const topicLabels = {{ topic_labels|tojson }};
-  const topicValues = {{ topic_values|tojson }};
-
-  const ctx = document.getElementById('topicAccuracyChart').getContext('2d');
-  const topicAccuracyChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: topicLabels,
-      datasets: [{
-        label: 'Topic Accuracy (%)',
-        data: topicValues,
-        backgroundColor: 'rgba(54, 162, 235, 0.6)'
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100
+    const topicLabels = {{ topic_labels|tojson }};
+    const topicValues = {{ topic_values|tojson }};
+  
+    const ctx = document.getElementById('topicAccuracyChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: topicLabels,
+        datasets: [{
+          label: 'Topic Accuracy (%) - All Meets',
+          data: topicValues,
+          backgroundColor: 'rgba(54, 162, 235, 0.6)'
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100
+          }
         }
       }
-    }
-  });
-</script>
+    });
+  </script>
 
 {% endblock %}

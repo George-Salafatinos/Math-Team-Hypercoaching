@@ -141,6 +141,17 @@ def add_participant_scores(meet_id, event_id, participant_scores):
                     event["participants"].extend(participant_scores)
                     save_data(data)
                     return
+                
+def update_team_scores(meet_id, event_id, correct_qs, incorrect_qs):
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            for event in meet["events"]:
+                if event["id"] == event_id:
+                    event["teamCorrectQuestions"] = correct_qs
+                    event["teamIncorrectQuestions"] = incorrect_qs
+                    save_data(data)
+                    return
 
 
 # -------------- OPTIONAL DELETE FUNCTIONS ---------------

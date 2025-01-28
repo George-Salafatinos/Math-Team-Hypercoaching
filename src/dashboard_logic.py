@@ -12,11 +12,14 @@ TEAM_EVENTS = {
     "Calculator Team"
 }
 
+
 def get_topic_accuracy_across_meets(skip_team_events=False):
     """
-    If skip_team_events=True, we ignore any meets' events that are in TEAM_EVENTS.
-    We accumulate question-level stats: topic_stats[topic] = {"correct": X, "attempted": Y, "accuracy": float}
-    Return a dict of topics to stats.
+    Returns a dict: { topic: {"correct": X, "attempted": Y, "accuracy": float} }
+    across all meets. If skip_team_events=True, we ignore team events.
+
+    Now includes logic for teamCorrectQuestions/teamIncorrectQuestions
+    to reflect team performance in the topic coverage.
     """
     data = load_data()
     topic_stats = {}
@@ -24,51 +27,78 @@ def get_topic_accuracy_across_meets(skip_team_events=False):
     for meet in data["meets"]:
         for event in meet["events"]:
             event_name = event.get("eventName", "")
-            # skip if user requests skipping team events
+            # skip or not skip team events
             if skip_team_events and event_name in TEAM_EVENTS:
                 continue
 
+            # We map questionNumber -> [topics]
             exam_topics = event.get("examTopics", [])
-            question_to_topics = {}
-            for q in exam_topics:
-                q_num = q["questionNumber"]
-                question_to_topics[q_num] = q["topics"]
+            q2topics = {}
+            for item in exam_topics:
+                q_num = item["questionNumber"]
+                q2topics[q_num] = item["topics"]
 
-            for participant in event.get("participants", []):
-                correct_qs = participant.get("correctQuestions", [])
-                incorrect_qs = participant.get("incorrectQuestions", [])
-                for q_num in correct_qs:
-                    if q_num in question_to_topics:
-                        for topic in question_to_topics[q_num]:
-                            topic_stats.setdefault(topic, {"correct": 0, "attempted": 0})
-                            topic_stats[topic]["correct"] += 1
-                            topic_stats[topic]["attempted"] += 1
-                for q_num in incorrect_qs:
-                    if q_num in question_to_topics:
-                        for topic in question_to_topics[q_num]:
-                            topic_stats.setdefault(topic, {"correct": 0, "attempted": 0})
-                            topic_stats[topic]["attempted"] += 1
+            if event_name in TEAM_EVENTS:
+                # If we want to incorporate the team's single set of correct/incorrect
+                # This lumps the entire team as one "participant"
+                team_correct = event.get("teamCorrectQuestions", [])
+                team_incorrect = event.get("teamIncorrectQuestions", [])
+
+                # For each correct question
+                for cq in team_correct:
+                    if cq in q2topics:
+                        for t in q2topics[cq]:
+                            topic_stats.setdefault(t, {"correct": 0, "attempted": 0})
+                            topic_stats[t]["correct"] += 1
+                            topic_stats[t]["attempted"] += 1
+                # For each incorrect question
+                for iq in team_incorrect:
+                    if iq in q2topics:
+                        for t in q2topics[iq]:
+                            topic_stats.setdefault(t, {"correct": 0, "attempted": 0})
+                            topic_stats[t]["attempted"] += 1
+
+            else:
+                # Individual event => sum participants
+                for participant in event.get("participants", []):
+                    correct_qs = participant.get("correctQuestions", [])
+                    incorrect_qs = participant.get("incorrectQuestions", [])
+                    for cq in correct_qs:
+                        if cq in q2topics:
+                            for t in q2topics[cq]:
+                                topic_stats.setdefault(t, {"correct": 0, "attempted": 0})
+                                topic_stats[t]["correct"] += 1
+                                topic_stats[t]["attempted"] += 1
+                    for iq in incorrect_qs:
+                        if iq in q2topics:
+                            for t in q2topics[iq]:
+                                topic_stats.setdefault(t, {"correct": 0, "attempted": 0})
+                                topic_stats[t]["attempted"] += 1
 
     # finalize accuracy
     for topic, stats in topic_stats.items():
         c = stats["correct"]
         a = stats["attempted"]
-        stats["accuracy"] = float(c) / a if a > 0 else 0.0
+        stats["accuracy"] = float(c)/a if a > 0 else 0.0
 
     return topic_stats
 
 
 def get_event_scores_summary():
     """
-    Return a list of:
-    {
-      "meetTitle": ...,
-      "eventName": ...,
-      "totalQuestions": ...,
-      "totalCorrect": ...,
-      "totalParticipants": ...
-    }
-    We'll handle sorting in app.py.
+    Returns a list of event summaries (for the entire dashboard):
+    [
+      {
+        "meetTitle": ...,
+        "eventName": ...,
+        "totalQuestions": ...,
+        "totalCorrect": ...,
+        "totalParticipants": ...
+      },
+      ...
+    ]
+    This now counts correct answers from teamCorrectQuestions for team events,
+    and from participants' correctQuestions for individual events.
     """
     data = load_data()
     summaries = []
@@ -77,20 +107,33 @@ def get_event_scores_summary():
         meet_title = meet["title"]
         for event in meet["events"]:
             event_name = event.get("eventName", "Unnamed Event")
-            exam_topics = event.get("examTopics", [])
-            total_questions = len(exam_topics)
 
-            total_correct = 0
-            participants_list = event.get("participants", [])
-            for participant in participants_list:
-                total_correct += len(participant.get("correctQuestions", []))
+            # If you stored examTopics, numQuestions, etc.:
+            exam_topics = event.get("examTopics", [])
+            # For display, let's define totalQuestions:
+            # prefer event["numQuestions"] if present, else fall back to len(exam_topics)
+            total_questions = event.get("numQuestions") or len(exam_topics)
+
+            # Distinguish team vs. individual
+            if event_name in TEAM_EVENTS:
+                # team event => totalCorrect is from event["teamCorrectQuestions"]
+                team_correct = event.get("teamCorrectQuestions", [])
+                total_correct = len(team_correct)
+                total_participants = len(event.get("participants", []))  # Just the # people on the team
+            else:
+                # individual event => sum participant correct
+                total_correct = 0
+                participants_list = event.get("participants", [])
+                for participant in participants_list:
+                    total_correct += len(participant.get("correctQuestions", []))
+                total_participants = len(participants_list)
 
             summaries.append({
                 "meetTitle": meet_title,
                 "eventName": event_name,
                 "totalQuestions": total_questions,
                 "totalCorrect": total_correct,
-                "totalParticipants": len(participants_list)
+                "totalParticipants": total_participants
             })
 
     return summaries
@@ -140,3 +183,54 @@ def get_individual_breakdowns(skip_team_events=False):
                 p_data["totalQuestionsAttempted"] += (len(correct_qs) + len(incorrect_qs))
 
     return list(participants_map.values())
+
+def get_event_topic_accuracy(meet_id, event_id):
+    """
+    Returns a dict: topic -> {correct: X, attempted: Y, accuracy: float}
+    for a single event (question-level data).
+    Ignores teamCorrectQuestions, because that doesn't map to topics easily.
+    """
+    data = load_data()
+    topic_stats = {}
+    the_event = None
+
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            for evt in meet["events"]:
+                if evt["id"] == event_id:
+                    the_event = evt
+                    break
+    if not the_event:
+        return {}
+
+    exam_topics = the_event.get("examTopics", [])
+    # map question->topics
+    q2topics = {}
+    for item in exam_topics:
+        q2topics[item["questionNumber"]] = item["topics"]
+
+    # for each participant (individual event), accumulate correctness
+    # if it's a team event and you want to skip participant-level data, do so
+    # but let's just do what we do for normal question-level participants.
+    for p in the_event.get("participants", []):
+        correct_qs = p.get("correctQuestions", [])
+        incorrect_qs = p.get("incorrectQuestions", [])
+        for cq in correct_qs:
+            if cq in q2topics:
+                for t in q2topics[cq]:
+                    topic_stats.setdefault(t, {"correct": 0, "attempted": 0})
+                    topic_stats[t]["correct"] += 1
+                    topic_stats[t]["attempted"] += 1
+        for iq in incorrect_qs:
+            if iq in q2topics:
+                for t in q2topics[iq]:
+                    topic_stats.setdefault(t, {"correct": 0, "attempted": 0})
+                    topic_stats[t]["attempted"] += 1
+
+    # finalize accuracy
+    for t, stats in topic_stats.items():
+        c = stats["correct"]
+        a = stats["attempted"]
+        stats["accuracy"] = c / a if a > 0 else 0.0
+
+    return topic_stats

@@ -5,6 +5,7 @@ import uuid
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from src.dashboard_logic import get_event_topic_accuracy
 
 load_dotenv()
 BASE_UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")
@@ -113,8 +114,24 @@ def create_app():
         if not event:
             flash("Event not found.", "error")
             return redirect(url_for("view_meet", meet_id=meet_id))
-        return render_template("event.html", meet_id=meet_id, event=event)
-    
+
+        # Now we compute event-level topic accuracy
+        event_topic_stats = get_event_topic_accuracy(meet_id, event_id)
+        # sort from lowest to highest
+        sorted_topic_stats = sorted(
+            event_topic_stats.items(),
+            key=lambda x: x[1]["accuracy"]
+        )
+        chart_labels = [t[0] for t in sorted_topic_stats]
+        chart_values = [round(t[1]["accuracy"] * 100, 1) for t in sorted_topic_stats]
+
+        return render_template("event.html",
+                            meet_id=meet_id,
+                            event=event,
+                            event_topic_stats=sorted_topic_stats,
+                            chart_labels=chart_labels,
+                            chart_values=chart_values)
+
     @app.route("/meet/<meet_id>/upload_topic_list", methods=["POST"])
     def upload_topic_list(meet_id):
         meet = get_meet(meet_id)
@@ -189,7 +206,7 @@ def create_app():
             meet = get_meet(meet_id)
             known_list = meet.get("topicList", {}) if meet else {}
             try:
-                exam_data = parse_exam_images(saved_file_paths, known_list)
+                exam_data = parse_exam_images(saved_file_paths, known_list, event_name=event.get("eventName",""))
                 # store in event["examTopics"]
                 update_event_exam_topics(meet_id, event_id, exam_data)
 
@@ -381,21 +398,20 @@ def create_app():
     # ---------- DASHBOARD ----------
     @app.route("/dashboard")
     def dashboard_view():
+        # Now includes both team & individual events in the topic coverage
         topic_accuracy_dict = get_topic_accuracy_across_meets(skip_team_events=False)
-        # Sort from lowest to highest accuracy
-        sorted_topic_accuracy = sorted(
-            topic_accuracy_dict.items(),
-            key=lambda item: item[1]["accuracy"]
-        )
+        sorted_topic_accuracy = sorted(topic_accuracy_dict.items(), key=lambda i: i[1]["accuracy"])
 
         topic_labels = [t[0] for t in sorted_topic_accuracy]
         topic_values = [round(t[1]["accuracy"] * 100, 1) for t in sorted_topic_accuracy]
 
-        event_summaries = get_event_scores_summary()
-        event_summaries.sort(key=lambda e: e["totalCorrect"])
+        event_summaries = get_event_scores_summary()  # includes both team & individual
+        # sort if you like
+        event_summaries.sort(key=lambda e: e["totalCorrect"], reverse=True)
 
+        # participant breakdown might skip team events or not, up to you
         participant_breakdowns = get_individual_breakdowns(skip_team_events=True)
-        participant_breakdowns.sort(key=lambda p: p["totalCorrect"])
+        participant_breakdowns.sort(key=lambda p: p["totalCorrect"], reverse=True)
 
         return render_template(
             "dashboard.html",

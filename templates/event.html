@@ -1,11 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Event Details</h2>
-<p><strong>Name:</strong> {{ event.eventName }}</p>
-<p><strong>ID:</strong> {{ event.id }}</p>
+<div class="d-flex justify-content-between align-items-center">
+  <h2>Event Details</h2>
+  <!-- Right side: back button & dashboard link -->
+  <div>
+    <a href="{{ url_for('view_meet', meet_id=meet_id) }}" class="btn btn-outline-primary me-2">
+      ← Back to Meet
+    </a>
+    <a href="{{ url_for('dashboard_view') }}" class="btn btn-outline-success">
+      Dashboard
+    </a>
+  </div>
+</div>
 
 <hr>
+
 {% set isTeamEvent = event.eventName in ["Frosh-Soph 2-Person", "Jr-Sr 2-Person", "Frosh-Soph 8-person", "Jr-Sr 8-person", "Calculator Team"] %}
 
 <!-- EXAM UPLOAD (for question topics) -->
@@ -13,43 +23,79 @@
 <form action="{{ url_for('upload_exam_images', meet_id=meet_id, event_id=event.id) }}" 
       method="POST" enctype="multipart/form-data" class="mb-4">
   <div class="mb-3">
+    <label>Exam Image(s):</label>
     <input type="file" name="files" multiple class="form-control">
   </div>
   <button type="submit" class="btn btn-secondary">Submit Exam Images</button>
 </form>
 
 {% if event.examTopics and event.examTopics|length > 0 %}
+<!-- Table of question -> topics -->
+<div class="mb-3">
+  <h4>Exam Questions & Topics</h4>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle">
+      <thead>
+        <tr>
+          <th>Question #</th>
+          <th>Topics</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for q in event.examTopics %}
+        <tr>
+          <td>{{ q.questionNumber }}</td>
+          <td>
+            {% for t in q.topics %}
+              <span class="badge bg-info text-dark me-1">{{ t }}</span>
+            {% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<p>No exam topics have been parsed yet.</p>
+{% endif %}
+
+{% if chart_labels and chart_labels|length > 0 %}
+<!-- Event-level topic accuracy chart -->
+<div class="my-4">
+  <h4>Event Topic Accuracy Chart</h4>
+  <canvas id="eventTopicChart" height="200"></canvas>
+</div>
+
 <div class="table-responsive">
-  <table class="table table-bordered">
+  <table class="table table-sm table-bordered align-middle">
     <thead>
       <tr>
-        <th>Question #</th>
-        <th>Topics</th>
+        <th>Topic</th>
+        <th>Correct</th>
+        <th>Attempted</th>
+        <th>Accuracy (%)</th>
       </tr>
     </thead>
     <tbody>
-    {% for q in event.examTopics %}
+    {% for topic, stats in event_topic_stats %}
       <tr>
-        <td>{{ q.questionNumber }}</td>
-        <td>
-          {% for t in q.topics %}
-            <span class="badge bg-info text-dark me-1">{{ t }}</span>
-          {% endfor %}
-        </td>
+        <td>{{ topic }}</td>
+        <td>{{ stats.correct }}</td>
+        <td>{{ stats.attempted }}</td>
+        <td>{{ (stats.accuracy * 100)|round(1) }}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
 </div>
-{% else %}
-<p>No exam topics have been parsed yet.</p>
 {% endif %}
 
 <!-- Show how many questions in this event (if set) -->
 {% if event.numQuestions is defined %}
 <p><strong>Total Questions (for manual scoring):</strong> {{ event.numQuestions }}</p>
 {% else %}
-<p><em>Num questions not yet set for manual scoring.</em></p>
+<p><em>Num questions not yet set (upload exam or define it) for manual scoring.</em></p>
 {% endif %}
 
 <hr>
@@ -197,7 +243,6 @@ function toggleIndivScoreMode() {
             <br>Correct: {{ p.correctQuestions|length }} | Incorrect: {{ p.incorrectQuestions|length }}
           {% endif %}
         </div>
-        <!-- Remove participant form -->
         <form action="{{ url_for('remove_participant', meet_id=meet_id, event_id=event.id) }}" method="POST">
           <input type="hidden" name="studentName" value="{{ p.studentName }}">
           <input type="hidden" name="gradeLevel" value="{{ p.gradeLevel }}">
@@ -213,6 +258,7 @@ function toggleIndivScoreMode() {
   <p>No participants yet.</p>
 {% endif %}
 
+<!-- If it's a team event, show the team correct/incorrect if set -->
 {% if isTeamEvent %}
 <hr>
 <h3>Team Correct/Incorrect Questions</h3>
@@ -223,4 +269,34 @@ function toggleIndivScoreMode() {
   <p>No team scores set yet.</p>
 {% endif %}
 {% endif %}
+
+<!-- Chart.js init for event-level topic accuracy -->
+{% if chart_labels and chart_labels|length > 0 %}
+<script>
+  const evtLabels = {{ chart_labels|tojson }};
+  const evtValues = {{ chart_values|tojson }};
+  const ctx = document.getElementById('eventTopicChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: evtLabels,
+      datasets: [{
+        label: 'Event Topic Accuracy (%)',
+        data: evtValues,
+        backgroundColor: 'rgba(153, 102, 255, 0.6)'
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
+      }
+    }
+  });
+</script>
+{% endif %}
+
 {% endblock %}

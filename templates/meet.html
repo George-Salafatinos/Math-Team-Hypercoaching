@@ -6,28 +6,10 @@
 <p><strong>ID:</strong> {{ meet.id }}</p>
 
 <hr>
-
-<!-- Topic List Upload -->
-<h3>Upload Topic List</h3>
-<form action="{{ url_for('upload_topic_list', meet_id=meet.id) }}" method="POST" enctype="multipart/form-data" class="mb-3">
-  <div class="mb-3">
-    <input type="file" name="files" multiple class="form-control">
-  </div>
-  <button type="submit" class="btn btn-secondary">Submit Topic List</button>
-</form>
-
-<!-- Existing topic list info (optional) -->
-{% if meet.topicList %}
-<p><strong>Parsed Topics:</strong></p>
-<pre>{{ meet.topicList|tojson(indent=2) }}</pre>
-{% endif %}
-
-<hr>
-
 <!-- Create Event -->
-<a class="btn btn-primary" href="{{ url_for('create_event_route', meet_id=meet.id) }}">Create a New Event</a>
+<a class="btn btn-primary mb-3" href="{{ url_for('create_event_route', meet_id=meet.id) }}">Create a New Event</a>
 
-<h3 class="mt-4">Events in this Meet:</h3>
+<h3>Events in this Meet:</h3>
 {% if meet.events %}
   <ul class="list-group">
     {% for event in meet.events %}
@@ -49,5 +31,45 @@
   </ul>
 {% else %}
   <p>No events yet.</p>
+{% endif %}
+
+<hr>
+<!-- Upload Topic List -->
+<h3>Upload Topic List</h3>
+<form action="{{ url_for('upload_topic_list', meet_id=meet.id) }}" method="POST" enctype="multipart/form-data" class="mb-3">
+  <div class="mb-3">
+    <input type="file" name="files" multiple class="form-control">
+  </div>
+  <button type="submit" class="btn btn-secondary">Submit Topic List</button>
+</form>
+
+<hr>
+<!-- Show the parsed topic list in a table below the events -->
+{% if meet.topicList and meet.topicList|length > 0 %}
+  <h3>Parsed Topics</h3>
+  <div class="table-responsive">
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>Topics</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for subject, topics in meet.topicList.items() %}
+        <tr>
+          <td>{{ subject }}</td>
+          <td>
+            {% for t in topics %}
+              <span class="badge bg-info text-dark me-1">{{ t }}</span>
+            {% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p>No parsed topic list yet.</p>
 {% endif %}
 {% endblock %}

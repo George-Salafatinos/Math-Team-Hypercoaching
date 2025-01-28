@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block content %}
 <h2>Dashboard</h2>
 
@@ -9,8 +8,8 @@
   <canvas id="topicAccuracyChart" width="400" height="200"></canvas>
 </div>
 
-<!-- 1. Topic Accuracy Table -->
-<h3>Topic Accuracy (Table)</h3>
+<!-- 1. Topic Accuracy Table (sorted) -->
+<h3>Topic Accuracy (Table, Sorted from Lowest->Highest)</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
     <thead>
@@ -22,7 +21,7 @@
       </tr>
     </thead>
     <tbody>
-    {% for topic, stats in topic_accuracy.items() %}
+    {% for topic, stats in sorted_topic_accuracy %}
       <tr>
         <td>{{ topic }}</td>
         <td>{{ stats.correct }}</td>
@@ -34,7 +33,7 @@
   </table>
 </div>
 
-<!-- 2. Event Scores Summary (Already sorted in app.py) -->
+<!-- 2. Event Scores Summary (lowest->highest totalCorrect) -->
 <h3>Event Scores Summary</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
@@ -61,7 +60,7 @@
   </table>
 </div>
 
-<!-- 3. Individual Breakdowns (Already sorted in app.py) -->
+<!-- 3. Individual Participant Breakdowns (lowest->highest totalCorrect) -->
 <h3>Individual Participant Breakdowns</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
@@ -98,11 +97,9 @@
 
 <!-- Script to initialize the chart -->
 <script>
-  // These two arrays come from the app.py route
   const topicLabels = {{ topic_labels|tojson }};
   const topicValues = {{ topic_values|tojson }};
 
-  // Chart.js setup
   const ctx = document.getElementById('topicAccuracyChart').getContext('2d');
   const topicAccuracyChart = new Chart(ctx, {
     type: 'bar',
@@ -125,4 +122,5 @@
     }
   });
 </script>
+
 {% endblock %}

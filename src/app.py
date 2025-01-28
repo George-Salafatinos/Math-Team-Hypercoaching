@@ -114,8 +114,45 @@ def create_app():
             flash("Event not found.", "error")
             return redirect(url_for("view_meet", meet_id=meet_id))
         return render_template("event.html", meet_id=meet_id, event=event)
+    
+    @app.route("/meet/<meet_id>/upload_topic_list", methods=["POST"])
+    def upload_topic_list(meet_id):
+        meet = get_meet(meet_id)
+        if not meet:
+            flash("Meet not found.", "error")
+            return redirect(url_for("home_page"))
 
-    # ---------- Fundamental Step: Upload Exam Images & Parse Question Topics ----------
+        uploaded_files = request.files.getlist("files")
+        if not uploaded_files or all(f.filename == "" for f in uploaded_files):
+            flash("No files selected.", "error")
+            return redirect(url_for("view_meet", meet_id=meet_id))
+
+        saved_file_paths = []
+        topic_list_folder = os.path.join(BASE_UPLOAD_FOLDER, "topic_list", meet_id)
+        os.makedirs(topic_list_folder, exist_ok=True)
+
+        for file in uploaded_files:
+            if file and file.filename:
+                original_filename = secure_filename(file.filename)
+                unique_name = f"{uuid.uuid4()}_{original_filename}"
+                full_path = os.path.join(topic_list_folder, unique_name)
+                file.save(full_path)
+                relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
+                saved_file_paths.append(relative_path)
+
+        if saved_file_paths:
+            add_topic_list_files(meet_id, saved_file_paths)
+            try:
+                parsed_topics = parse_topic_list_images(saved_file_paths)
+                update_meet_topic_list(meet_id, parsed_topics)
+                flash("Topic list uploaded and parsed successfully!", "success")
+            except Exception as e:
+                flash(f"GPT parse error: {str(e)}", "error")
+
+        return redirect(url_for("view_meet", meet_id=meet_id))
+
+
+    # ----------Upload Exam Images & Parse Question Topics ----------
     @app.route("/meet/<meet_id>/event/<event_id>/upload_exam", methods=["POST"])
     def upload_exam_images(meet_id, event_id):
         """

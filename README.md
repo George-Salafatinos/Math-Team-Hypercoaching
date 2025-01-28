@@ -1,83 +1,174 @@
-# Math Team Dashboard
+# Math Team Analytics Dashboard
 
-This is a small web application for a high-school math team to track meet events, upload exam images, parse them with GPT for topics and scoring, and view overall dashboards. Specifically designed for WSML in Illinois.
+This project is a web-based analytics dashboard for tracking the performance of a high school Math Team. The application processes data from various math competitions, including individual and team events, to provide detailed insights into topic mastery, participant performance, and overall team strengths. Specifically designed for WSML in Illinois.
 
 ## Features
 
-- **Add Meets** and a **Topic List** (parsed by GPT)
-- **Add Events** with a *fixed set* of event names
-- **Upload** exam images and store them locally
-- **Upload** single student score sheets, parse them via GPT to see which questions are correct/incorrect
-- **Dashboard** with aggregated stats: topic accuracy, event summaries, participant breakdowns
+1. **Meet and Event Management**
+   - Create meets and add events (fixed types such as "Individual Algebra," "Frosh-Soph 2-Person," etc.)
+   - Upload exam questions to parse topics using GPT
+   - Add participant data manually or via GPT-parsed scores
 
-## Quick Start
+2. **Individual and Team Events**
+   - Handle individual events with participant-specific scores and topic tagging
+   - Handle team events with a single set of scores for the team and participant rosters
 
-1. **Clone** the repo or copy these files
+3. **Dashboard Insights**
+   - Main Chart: Topic accuracy across all meets and events
+   - Event summaries (total correct answers, questions, participants)
+   - Participant breakdowns with individual performance
 
-2. **Install** dependencies:
+4. **Event-Level Analytics**
+   - Charts for topic accuracy specific to each event
+   - Exam questions with parsed topics displayed clearly
+
+5. **Modern UI**
+   - Built with Flask, Bootstrap, and Chart.js for a clean and modern interface
+   - Responsive design for usability across devices
+
+## Cost Estimate
+
+The GPT-powered parsing features use the OpenAI API, with an estimated cost of approximately $0.10 (10 cents) per meet.
+
+## Setup Instructions
+
+### Requirements
+- Python 3.8 or higher
+- Flask
+- OpenAI API Key (for GPT-powered parsing)
+- Node.js (optional for advanced frontend customization)
+
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-repo/math-team-dashboard.git
+   cd math-team-dashboard
+   ```
+
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate   # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Create** a `.env` file with your GPT/OpenAI key:
-   ```
-   OPENAI_API_KEY=sk-123yourKeyHere
-   ```
-
-4. Ensure you have a `data` folder with a `store.json`:
-   ```json
-   {
-     "meets": []
-   }
-   ```
-
-5. **Run** the app:
+4. Create a `.env` file for your OpenAI API Key:
    ```bash
-   python src/app.py
+   echo "OPENAI_API_KEY=your_api_key_here" > .env
    ```
 
-6. **Open** http://127.0.0.1:5000/ in your browser
+5. Run the app:
+   ```bash
+   flask run
+   ```
 
-## Project Structure
+6. Visit the app in your browser at [http://127.0.0.1:5000](http://127.0.0.1:5000)
 
+## Usage
+
+### Workflow Overview
+
+1. **Create Meets**  
+   - Navigate to the home page and click "Add Meet"
+   - Enter a title for the meet (e.g., "Fall Competition 2023")
+
+2. **Add Events**  
+   - Inside a meet, click "Add Event" and select from fixed event types:
+     - Individual events: Algebra, Geometry, etc.
+     - Team events: Frosh-Soph 2-Person, Calculator Team, etc.
+
+3. **Upload Exam Questions**  
+   - Upload photos of exam questions for GPT parsing
+   - Topics are tagged to each question and stored for event analytics
+
+4. **Add Participant Scores**  
+   - For individual events, add participant names, grades, and correct/incorrect questions
+   - For team events, enter a single set of team scores and add participants by name
+
+5. **View Insights**  
+   - Dashboard: View charts and tables summarizing topic accuracy, event performance, and participant breakdowns across all meets
+   - Event Pages: View event-specific analytics, including topic charts and participant performance
+
+## Data Structure
+
+The application uses a nested data structure for local JSON storage:
+
+```plaintext
+store.json
+└── meets
+    ├── events
+    │   ├── participants
+    │   │   ├── studentName
+    │   │   ├── gradeLevel
+    │   │   ├── correctQuestions
+    │   │   └── incorrectQuestions
+    │   ├── teamCorrectQuestions (for team events)
+    │   ├── teamIncorrectQuestions (for team events)
+    │   └── examTopics
+    └── topicList
 ```
-.
-├── src/
-│   ├── app.py
-│   ├── data_manager.py
-│   ├── gpt_services.py
-│   ├── dashboard_logic.py
-│   └── ...
-├── templates/
-│   ├── base.html
-│   ├── home.html
-│   ├── add_meet.html
-│   ├── create_event.html
-│   ├── meet.html
-│   ├── event.html
-│   └── dashboard.html
-├── static/
-│   ├── styles.css
-│   └── ...
-├── data/
-│   └── store.json
-├── uploads/
-│   ├── topic_list/
-│   ├── exams/
-│   └── scores/
-├── requirements.txt
-└── README.md
-```
 
-## Common Issues
+## Key Features in Detail
 
-- **GPT parse failures**: If the image is unclear or GPT times out, you might see partial results. We recommend re-uploading or improving prompt instructions.
-- **Permissions**: Ensure your `uploads/` and `data/` folders are writable.
-- **Large images**: If your images are huge, consider resizing before upload.
+### Exam Parsing
+- Upload images of exam questions
+- GPT parses questions into tagged topics, e.g.:
+  ```json
+  [
+    {"questionNumber": 1, "topics": ["Geometry - Area of Rectangles", "Geometry - Volume"]},
+    {"questionNumber": 2, "topics": ["Algebra - Factoring"]}
+  ]
+  ```
 
-## Estimated Costs
+### Topic Accuracy
+- Tracks correct and attempted answers for each topic across all events and participants
+- Dashboard includes a main chart summarizing topic performance
 
-This application uses the OpenAI API for parsing exams and score sheets. Based on typical usage:
-- Approximately $0.10 per event (including exam and score sheet parsing)
+### Team Event Support
+- Single set of team scores per event
+- Topic accuracy includes team data properly weighted
 
-For more details, see the inline docstrings in each file.
+## Technology Stack
+
+### Backend
+- Flask (Python)
+- OpenAI API for GPT-based parsing
+- JSON-based local storage (no database required)
+
+### Frontend
+- Bootstrap for styling
+- Chart.js for visualizations
+- Responsive and modern UI
+
+### APIs
+- OpenAI GPT (4-mini) for:
+  - Parsing exam topics
+  - Scoring participant answers
+
+## Future Enhancements
+- Add user authentication for secure data management
+- Export analytics as CSV or PDF
+- Support custom event types or flexible topic lists
+
+## Contributing
+1. Fork the repository
+2. Create a new branch:
+   ```bash
+   git checkout -b feature-name
+   ```
+3. Commit changes:
+   ```bash
+   git commit -m "Add new feature"
+   ```
+4. Push to the branch:
+   ```bash
+   git push origin feature-name
+   ```
+5. Open a pull request
+
+## License
+This project is licensed under the MIT License. See the `LICENSE` file for details.

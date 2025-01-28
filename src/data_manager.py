@@ -180,3 +180,20 @@ def delete_participant(meet_id, event_id, student_name, grade_level):
                             save_data(data)
                             return True
     return False
+
+
+# data_manager.py
+
+def update_event_num_questions(meet_id, event_id, num_questions):
+    """
+    Store num_questions in the event so participants can skip re-entering it for manual scoring.
+    """
+    data = load_data()
+    for meet in data["meets"]:
+        if meet["id"] == meet_id:
+            for event in meet["events"]:
+                if event["id"] == event_id:
+                    event["numQuestions"] = num_questions
+                    save_data(data)
+                    return
+

@@ -117,9 +117,9 @@ def parse_exam_images(file_paths, known_topic_list):
             "type": "text",
             "text": (
                 "We have exam images. We also have a known topic list to guide labeling. "
-                "Please identify each question (questionNumber) and list relevant topics, returning valid JSON only.\n"
+                "Please identify each question (questionNumber) and list relevant topics, returning valid JSON only. List between two and four topics per question. \n"
                 "Example:\n"
-                "[\n  {\"questionNumber\": 1, \"topics\": [\"Algebra - Factoring\"]},\n  ...\n]\n\n"
+                "[\n  {\"questionNumber\": 1, \"topics\": [\"Algebra - Factoring, Geometry - area of rectangles\"]},\n  ...\n]\n\n"
                 f"Known topic list for reference: {json.dumps(known_topic_list)}"
             ),
         }
@@ -147,6 +147,7 @@ def parse_exam_images(file_paths, known_topic_list):
                     "content": content_list
                 }
             ],
+            temperature = .2
             #max_tokens=700
         )
         assistant_reply = response.choices[0].message.content

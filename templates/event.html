@@ -6,37 +6,80 @@
 <p><strong>ID:</strong> {{ event.id }}</p>
 
 <hr>
-
 {% set isTeamEvent = event.eventName in ["Frosh-Soph 2-Person", "Jr-Sr 2-Person", "Frosh-Soph 8-person", "Jr-Sr 8-person", "Calculator Team"] %}
 
-<!-- If it's a team event, we show a form to set the single "team" score, 
-     plus a separate form to add participants by name. -->
-{% if isTeamEvent %}
-<h3>Team Score (One Time)</h3>
-<form action="{{ url_for('upload_team_scores', meet_id=meet_id, event_id=event.id) }}"
+<!-- EXAM UPLOAD (for question topics) -->
+<h3>Upload Exam Images</h3>
+<form action="{{ url_for('upload_exam_images', meet_id=meet_id, event_id=event.id) }}" 
       method="POST" enctype="multipart/form-data" class="mb-4">
   <div class="mb-3">
-    <label class="form-label">Score Mode</label>
-    <select name="scoreMode" class="form-select" id="scoreModeSelect" onchange="toggleScoreMode()">
-      <option value="manual">Manual Entry</option>
-      <option value="image">GPT Parse (Upload Image)</option>
+    <input type="file" name="files" multiple class="form-control">
+  </div>
+  <button type="submit" class="btn btn-secondary">Submit Exam Images</button>
+</form>
+
+{% if event.examTopics and event.examTopics|length > 0 %}
+<div class="table-responsive">
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Question #</th>
+        <th>Topics</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for q in event.examTopics %}
+      <tr>
+        <td>{{ q.questionNumber }}</td>
+        <td>
+          {% for t in q.topics %}
+            <span class="badge bg-info text-dark me-1">{{ t }}</span>
+          {% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p>No exam topics have been parsed yet.</p>
+{% endif %}
+
+<!-- Show how many questions in this event (if set) -->
+{% if event.numQuestions is defined %}
+<p><strong>Total Questions (for manual scoring):</strong> {{ event.numQuestions }}</p>
+{% else %}
+<p><em>Num questions not yet set for manual scoring.</em></p>
+{% endif %}
+
+<hr>
+
+<!-- If it's a TEAM event: single team score form + multiple participants -->
+{% if isTeamEvent %}
+<h3>Team Score (Single Set of Questions)</h3>
+<form action="{{ url_for('upload_team_scores', meet_id=meet_id, event_id=event.id) }}" 
+      method="POST" enctype="multipart/form-data" class="mb-4">
+
+  <div class="mb-3">
+    <label class="form-label">Score Mode (Default manual)</label>
+    <select name="scoreMode" class="form-select" id="teamScoreMode" onchange="toggleTeamScoreMode()">
+      <option value="manual" selected>Manual</option>
+      <option value="image">GPT Parse (Upload Single Sheet)</option>
     </select>
   </div>
-  <!-- If manual, show totalQuestions & incorrectList -->
-  <div id="manualFields" style="display: block;">
-    <div class="mb-3">
-      <label for="totalQuestions">Total Questions:</label>
-      <input type="number" name="totalQuestions" min="1" class="form-control">
-    </div>
-    <div class="mb-3">
-      <label for="incorrectList">Incorrect Q# (comma-separated):</label>
-      <input type="text" name="incorrectList" class="form-control" placeholder="e.g. 3,5">
-    </div>
+
+  <div id="teamManualFields">
+    {% if event.numQuestions is defined and event.numQuestions > 0 %}
+      <!-- We skip totalQuestions because event.numQuestions is known. -->
+      <label for="incorrectList" class="form-label">Which Questions Were Incorrect? (comma-separated)</label>
+      <input type="text" name="incorrectList" class="form-control" placeholder="e.g. 3,7">
+    {% else %}
+      <p class="text-danger">NumQuestions not set yet (upload exam or set it in data directly). Manual scoring not available.</p>
+    {% endif %}
   </div>
 
-  <!-- If image, show file input -->
-  <div id="imageFields" style="display: none;">
-    <label>Answer Sheet Image (for GPT parse):</label>
+  <div id="teamImageFields" style="display: none;">
+    <label>Team Answer Sheet Image (for GPT parse):</label>
     <input type="file" name="scoreFile" class="form-control">
   </div>
 
@@ -44,18 +87,18 @@
 </form>
 
 <script>
-  function toggleScoreMode() {
-    const mode = document.getElementById("scoreModeSelect").value;
-    const manualDiv = document.getElementById("manualFields");
-    const imageDiv = document.getElementById("imageFields");
-    if (mode === "manual") {
-      manualDiv.style.display = "block";
-      imageDiv.style.display = "none";
-    } else {
-      manualDiv.style.display = "none";
-      imageDiv.style.display = "block";
-    }
+function toggleTeamScoreMode() {
+  const mode = document.getElementById("teamScoreMode").value;
+  const manualDiv = document.getElementById("teamManualFields");
+  const imageDiv = document.getElementById("teamImageFields");
+  if (mode === "image") {
+    manualDiv.style.display = "none";
+    imageDiv.style.display = "block";
+  } else {
+    manualDiv.style.display = "block";
+    imageDiv.style.display = "none";
   }
+}
 </script>
 
 <hr>
@@ -78,12 +121,13 @@
   </div>
   <button type="submit" class="btn btn-secondary mt-3">Add to Team</button>
 </form>
+
 {% else %}
-<!-- If it's an individual event, same as prior sprint -->
+<!-- If it's an individual event -->
 <h3>Add Participant (Individual Event)</h3>
 <form action="{{ url_for('upload_single_student_score', meet_id=meet_id, event_id=event.id) }}"
       method="POST" enctype="multipart/form-data" class="mb-4">
-  
+
   <div class="row mb-3">
     <div class="col">
       <label>Student Name:</label>
@@ -100,51 +144,48 @@
     </div>
   </div>
 
-  <label class="form-label">How will you provide score data?</label>
+  <label class="form-label">Score Mode (Default manual)</label>
   <div class="mb-3">
-    <select name="scoreMode" class="form-select" id="scoreMode2" onchange="toggleScoreMode2()">
+    <select name="scoreMode" class="form-select" id="indivScoreMode" onchange="toggleIndivScoreMode()">
+      <option value="manual" selected>Manual</option>
       <option value="image">Parse from Image (GPT)</option>
-      <option value="manual">Enter manually</option>
     </select>
   </div>
 
-  <div id="imageFields2">
-    <label>Answer Sheet Image (for GPT parse):</label>
-    <input type="file" name="scoreFile" class="form-control">
+  <div id="indivManualFields">
+    {% if event.numQuestions is defined and event.numQuestions > 0 %}
+      <label class="form-label">Which Questions Were Incorrect? (comma-separated)</label>
+      <input type="text" name="incorrectList" class="form-control" placeholder="e.g. 3,7,10">
+    {% else %}
+      <p class="text-danger">NumQuestions not set yet (upload exam or set it). Can't do manual scoring!</p>
+    {% endif %}
   </div>
 
-  <div id="manualFields2" style="display: none;">
-    <div class="mb-3">
-      <label for="totalQuestions">Total Questions:</label>
-      <input type="number" min="1" name="totalQuestions" class="form-control">
-    </div>
-    <div class="mb-3">
-      <label for="incorrectList">Which Questions Were Incorrect? (comma-separated):</label>
-      <input type="text" name="incorrectList" class="form-control" placeholder="e.g. 3,7,10">
-    </div>
+  <div id="indivImageFields" style="display: none;">
+    <label>Answer Sheet Image (for GPT parse):</label>
+    <input type="file" name="scoreFile" class="form-control">
   </div>
 
   <button type="submit" class="btn btn-secondary mt-3">Submit Score</button>
 </form>
 
 <script>
-  function toggleScoreMode2() {
-    const mode = document.getElementById("scoreMode2").value;
-    const imageDiv = document.getElementById("imageFields2");
-    const manualDiv = document.getElementById("manualFields2");
-    if (mode === "manual") {
-      imageDiv.style.display = "none";
-      manualDiv.style.display = "block";
-    } else {
-      imageDiv.style.display = "block";
-      manualDiv.style.display = "none";
-    }
+function toggleIndivScoreMode() {
+  const mode = document.getElementById("indivScoreMode").value;
+  const manualDiv = document.getElementById("indivManualFields");
+  const imageDiv = document.getElementById("indivImageFields");
+  if (mode === "image") {
+    manualDiv.style.display = "none";
+    imageDiv.style.display = "block";
+  } else {
+    manualDiv.style.display = "block";
+    imageDiv.style.display = "none";
   }
+}
 </script>
 {% endif %}
 
 <hr>
-<!-- Participants List -->
 <h3>Participants</h3>
 {% if event.participants %}
   <ul class="list-group mb-3">
@@ -172,45 +213,14 @@
   <p>No participants yet.</p>
 {% endif %}
 
-<hr>
-<!-- If it's a team event, show the team correct/incorrect if set -->
 {% if isTeamEvent %}
-  <h3>Team Correct/Incorrect Questions</h3>
-  {% if event.teamCorrectQuestions is defined or event.teamIncorrectQuestions is defined %}
-    <p><strong>Correct:</strong> {{ event.teamCorrectQuestions|length or 0 }} 
-       | <strong>Incorrect:</strong> {{ event.teamIncorrectQuestions|length or 0 }}</p>
-  {% else %}
-    <p>No team scores set yet.</p>
-  {% endif %}
-{% endif %}
-
 <hr>
-<!-- examTopics at the BOTTOM in a nice table -->
-{% if event.examTopics and event.examTopics|length > 0 %}
-<h3>Exam Questions & Topics</h3>
-<div class="table-responsive">
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>Question #</th>
-        <th>Topics</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for q in event.examTopics %}
-      <tr>
-        <td>{{ q.questionNumber }}</td>
-        <td>
-          {% for t in q.topics %}
-            <span class="badge bg-info text-dark me-1">{{ t }}</span>
-          {% endfor %}
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
+<h3>Team Correct/Incorrect Questions</h3>
+{% if event.teamCorrectQuestions is defined or event.teamIncorrectQuestions is defined %}
+  <p><strong>Correct:</strong> {{ event.teamCorrectQuestions|length or 0 }}
+     | <strong>Incorrect:</strong> {{ event.teamIncorrectQuestions|length or 0 }}</p>
 {% else %}
-<p>No exam topics have been parsed yet.</p>
+  <p>No team scores set yet.</p>
+{% endif %}
 {% endif %}
 {% endblock %}

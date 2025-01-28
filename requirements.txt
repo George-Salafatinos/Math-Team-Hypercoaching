@@ -1,3 +1,4 @@
 Flask==3.1.0
 openai==1.60.2
 python-dotenv==1.0.0
+pydantic==2.10.16

@@ -193,51 +193,102 @@ def create_app():
 
     @app.route("/meet/<meet_id>/event/<event_id>/upload_single_student_score", methods=["POST"])
     def upload_single_student_score(meet_id, event_id):
-        from src.data_manager import (
-            get_event, add_score_files, add_participant_scores
-        )
+        """
+        If the user chooses 'manual' in the form, we handle the manual question entry.
+        Otherwise, we assume they uploaded an image for GPT parsing.
+        """
+        from src.data_manager import get_event, add_score_files, add_participant_scores
 
         event_data = get_event(meet_id, event_id)
         if not event_data:
             flash("Event not found.", "error")
-            return redirect(url_for("view_meet", meet_id=meet_id))
+            return redirect(url_for("home_page"))
 
         student_name = request.form.get("studentName")
         grade_level = request.form.get("gradeLevel")
-        uploaded_file = request.files.get("scoreFile")
+        score_mode = request.form.get("scoreMode")  # "manual" or "image"
 
-        if not (student_name and grade_level and uploaded_file):
-            flash("Missing form data or file.", "error")
+        if not (student_name and grade_level and score_mode):
+            flash("Missing form data.", "error")
             return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
-        scores_folder = os.path.join(BASE_UPLOAD_FOLDER, "scores", meet_id, event_id)
-        os.makedirs(scores_folder, exist_ok=True)
+        # We'll build these:
+        correct_qs = []
+        incorrect_qs = []
 
-        original_filename = secure_filename(uploaded_file.filename)
-        unique_name = f"{uuid.uuid4()}_{original_filename}"
-        full_path = os.path.join(scores_folder, unique_name)
-        uploaded_file.save(full_path)
+        if score_mode == "manual":
+            # 1. Gather "totalQuestions" and "incorrectList" from the form
+            total_questions_str = request.form.get("totalQuestions")
+            incorrect_list_str = request.form.get("incorrectList")  # e.g. "3,7" meaning Q3 and Q7 are incorrect
 
-        relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
-        add_score_files(meet_id, event_id, [relative_path])
+            try:
+                total_q = int(total_questions_str)
+            except (TypeError, ValueError):
+                flash("Invalid total questions number.", "error")
+                return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
-        # GPT parse
-        known_exam_data = event_data.get("examTopics", [])
-        try:
-            parse_result = parse_single_student_exam_image(relative_path, known_exam_data)
-            correct_qs = parse_result.get("correctQuestions", [])
-            incorrect_qs = parse_result.get("incorrectQuestions", [])
+            if total_q < 1:
+                flash("Total questions must be at least 1.", "error")
+                return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
-            new_participant = {
-                "studentName": student_name,
-                "gradeLevel": grade_level,
-                "correctQuestions": correct_qs,
-                "incorrectQuestions": incorrect_qs
-            }
-            add_participant_scores(meet_id, event_id, [new_participant])
-            flash(f"Score sheet parsed for {student_name}!", "success")
-        except Exception as e:
-            flash(f"GPT parse error: {str(e)}", "error")
+            # Convert the user input to a set of question numbers
+            incorrect_set = set()
+            if incorrect_list_str:
+                for item in incorrect_list_str.split(","):
+                    item = item.strip()
+                    if item.isdigit():
+                        q_num = int(item)
+                        if q_num >= 1 and q_num <= total_q:
+                            incorrect_set.add(q_num)
+
+            # Everything else is correct
+            for q_num in range(1, total_q + 1):
+                if q_num in incorrect_set:
+                    incorrect_qs.append(q_num)
+                else:
+                    correct_qs.append(q_num)
+
+            flash(f"Manually entered data for {student_name}. Correct={len(correct_qs)}, Incorrect={len(incorrect_qs)}", "success")
+            
+        else:
+            # 2. GPT-based approach: the user uploaded an image
+            uploaded_file = request.files.get("scoreFile")
+            if not uploaded_file or uploaded_file.filename == "":
+                flash("No file selected for image-based parsing.", "error")
+                return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
+
+            # Save the file
+            scores_folder = os.path.join(BASE_UPLOAD_FOLDER, "scores", meet_id, event_id)
+            os.makedirs(scores_folder, exist_ok=True)
+
+            original_filename = secure_filename(uploaded_file.filename)
+            unique_name = f"{uuid.uuid4()}_{original_filename}"
+            full_path = os.path.join(scores_folder, unique_name)
+            uploaded_file.save(full_path)
+
+            relative_path = os.path.relpath(full_path, BASE_UPLOAD_FOLDER)
+            add_score_files(meet_id, event_id, [relative_path])
+
+            # GPT parse
+            from src.gpt_services import parse_single_student_exam_image
+            known_exam_data = event_data.get("examTopics", [])
+            try:
+                parse_result = parse_single_student_exam_image(relative_path, known_exam_data)
+                correct_qs = parse_result.get("correctQuestions", [])
+                incorrect_qs = parse_result.get("incorrectQuestions", [])
+                flash(f"Image-based parsing for {student_name} completed!", "success")
+            except Exception as e:
+                flash(f"GPT parse error: {str(e)}", "error")
+                return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
+
+        # 3. Now store them the same way as always
+        new_participant = {
+            "studentName": student_name,
+            "gradeLevel": grade_level,
+            "correctQuestions": correct_qs,
+            "incorrectQuestions": incorrect_qs
+        }
+        add_participant_scores(meet_id, event_id, [new_participant])
 
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 

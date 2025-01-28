@@ -6,48 +6,75 @@
 <p><strong>ID:</strong> {{ event.id }}</p>
 
 <hr>
-
-<!-- Exam Upload -->
-<h3>Upload Exam Images</h3>
-<form action="{{ url_for('upload_exam_images', meet_id=meet_id, event_id=event.id) }}" 
-      method="POST" enctype="multipart/form-data" class="mb-4">
-  <div class="mb-3">
-    <input type="file" name="files" multiple class="form-control">
-  </div>
-  <button type="submit" class="btn btn-secondary">Submit Exam Images</button>
-</form>
-
-<!-- Show examTopics from GPT (if any) -->
-{% if event.examTopics %}
-<h4>Exam Topics (Parsed)</h4>
-<pre>{{ event.examTopics|tojson(indent=2) }}</pre>
-{% endif %}
-
-<hr>
-
 <!-- Single Student Score -->
-<h3>Upload a Single Student's Score Sheet</h3>
+<h3>Upload a Single Student's Score</h3>
 <form action="{{ url_for('upload_single_student_score', meet_id=meet_id, event_id=event.id) }}"
       method="POST" enctype="multipart/form-data" class="mb-4">
-  <div class="mb-3">
-    <label>Student Name:</label>
-    <input type="text" name="studentName" class="form-control" required>
+  
+  <!-- Student Info -->
+  <div class="row mb-3">
+    <div class="col">
+      <label>Student Name:</label>
+      <input type="text" name="studentName" class="form-control" required>
+    </div>
+    <div class="col">
+      <label>Grade Level:</label>
+      <select name="gradeLevel" class="form-select">
+        <option value="freshman">freshman</option>
+        <option value="sophomore">sophomore</option>
+        <option value="junior">junior</option>
+        <option value="senior">senior</option>
+      </select>
+    </div>
   </div>
+
+  <!-- Score Mode: manual or image -->
+  <label class="form-label">How will you provide score data?</label>
   <div class="mb-3">
-    <label>Grade Level:</label>
-    <select name="gradeLevel" class="form-select">
-      <option value="freshman">freshman</option>
-      <option value="sophomore">sophomore</option>
-      <option value="junior">junior</option>
-      <option value="senior">senior</option>
+    <select name="scoreMode" class="form-select" id="scoreModeSelect" onchange="toggleScoreMode()">
+      <option value="manual">Enter manually</option>
+      <option value="image">Parse from Image (GPT) [Experimental, unreliable results]</option>
     </select>
   </div>
-  <div class="mb-3">
-    <label>Answer Sheet Image:</label>
-    <input type="file" name="scoreFile" required class="form-control">
+
+  <!-- If user chooses 'image', show file input -->
+  <div id="imageFields"  style="display: none;">
+    <label>Answer Sheet Image (for GPT parse):</label>
+    <input type="file" name="scoreFile" class="form-control">
   </div>
-  <button type="submit" class="btn btn-secondary">Submit Single Student Score</button>
+
+  <!-- If user chooses 'manual', show manual inputs -->
+  <div id="manualFields">
+    <div class="mb-3">
+      <label for="totalQuestions">Total Questions:</label>
+      <input type="number" min="1" name="totalQuestions" id="totalQuestions" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label for="incorrectList">Which Questions Were Incorrect? (comma-separated):</label>
+      <input type="text" name="incorrectList" id="incorrectList" class="form-control" placeholder="e.g. 3,7,10">
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-secondary mt-3">Submit Single Student Score</button>
 </form>
+
+<script>
+  function toggleScoreMode() {
+    const mode = document.getElementById("scoreModeSelect").value;
+    const imageFields = document.getElementById("imageFields");
+    const manualFields = document.getElementById("manualFields");
+    
+    if (mode === "manual") {
+      imageFields.style.display = "none";
+      manualFields.style.display = "block";
+    } else {
+      imageFields.style.display = "block";
+      manualFields.style.display = "none";
+    }
+  }
+</script>
+
+<hr>
 
 <h3>Participants</h3>
 {% if event.participants %}
@@ -60,7 +87,6 @@
           Correct: {{ p.correctQuestions|length }} 
           | Incorrect: {{ p.incorrectQuestions|length }}
         </div>
-        <!-- Optional Delete Participant -->
         <form action="{{ url_for('remove_participant', meet_id=meet_id, event_id=event.id) }}" method="POST">
           <input type="hidden" name="studentName" value="{{ p.studentName }}">
           <input type="hidden" name="gradeLevel" value="{{ p.gradeLevel }}">

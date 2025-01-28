@@ -3,9 +3,15 @@ import os
 import base64
 import json
 from openai import OpenAI
+from pydantic import BaseModel
 
 from dotenv import load_dotenv
 load_dotenv()
+
+
+class StudentScores(BaseModel):
+    correctQuestions: list[int]
+    incorrectQuestions: list[int]
 
 
 # Initialize the client with your API key (loaded from .env or environment variables).
@@ -173,7 +179,6 @@ def parse_single_student_exam_image(file_path, known_exam_data):
     {
       "correctQuestions": [1, 2, 5],
       "incorrectQuestions": [3],
-      "unattemptedQuestions": [4, 6]
     }
     """
 
@@ -186,7 +191,7 @@ def parse_single_student_exam_image(file_path, known_exam_data):
     content_list = [
         {
             "type": "text",
-            "text": ("Here is a graded student answer sheet. The question is correct if there is a check and/or a c next to it. If there is an x, it is incorrect. Feel free to privately verify your count matches the # correct at the top right. Respond with a JSON of {correctQuestions: [], incorrectQuestions: []} for this student. Respond only with a json, do not provide any other commentary or introduction. Your response should be a singular json and nothing else. Do not use the analyze feature unless specifically requested."
+            "text": ("Here is a graded student answer sheet. The question is correct if there is a check and/or a c next to it. If there is an x, it is incorrect. The number of questions correct should match the number correct listed at the top right. Respond with a json."
             )
         },
         # {
@@ -202,14 +207,16 @@ def parse_single_student_exam_image(file_path, known_exam_data):
     ]
 
     try:
-        response = client.chat.completions.create(
+        response = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
                     "content": content_list
                 }
-            ]
+            ],
+            response_format = StudentScores,
+            temperature = 0
         )
         assistant_reply = response.choices[0].message.content
         print("GPT Response:", assistant_reply)
@@ -234,5 +241,4 @@ def parse_single_student_exam_image(file_path, known_exam_data):
         return {
             "correctQuestions": [],
             "incorrectQuestions": [],
-            #"unattemptedQuestions": []
         }

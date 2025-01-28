@@ -3,8 +3,14 @@
 {% block content %}
 <h2>Dashboard</h2>
 
-<!-- 1. Topic Accuracy -->
-<h3>Topic Accuracy Across Meets</h3>
+<!-- Container for the bar chart -->
+<div class="mb-5">
+  <h3>Topic Accuracy Chart</h3>
+  <canvas id="topicAccuracyChart" width="400" height="200"></canvas>
+</div>
+
+<!-- 1. Topic Accuracy Table -->
+<h3>Topic Accuracy (Table)</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
     <thead>
@@ -28,7 +34,7 @@
   </table>
 </div>
 
-<!-- 2. Event Scores Summary -->
+<!-- 2. Event Scores Summary (Already sorted in app.py) -->
 <h3>Event Scores Summary</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
@@ -55,7 +61,7 @@
   </table>
 </div>
 
-<!-- 3. Individual Breakdowns -->
+<!-- 3. Individual Breakdowns (Already sorted in app.py) -->
 <h3>Individual Participant Breakdowns</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
@@ -89,4 +95,34 @@
     </tbody>
   </table>
 </div>
+
+<!-- Script to initialize the chart -->
+<script>
+  // These two arrays come from the app.py route
+  const topicLabels = {{ topic_labels|tojson }};
+  const topicValues = {{ topic_values|tojson }};
+
+  // Chart.js setup
+  const ctx = document.getElementById('topicAccuracyChart').getContext('2d');
+  const topicAccuracyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: topicLabels,
+      datasets: [{
+        label: 'Topic Accuracy (%)',
+        data: topicValues,
+        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
+      }
+    }
+  });
+</script>
 {% endblock %}

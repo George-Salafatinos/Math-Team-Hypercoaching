@@ -245,15 +245,38 @@ def create_app():
 
     @app.route("/dashboard")
     def dashboard_view():
-        topic_accuracy = get_topic_accuracy_across_meets()
+        topic_accuracy_dict = get_topic_accuracy_across_meets()
+        # 1. Sort topics by descending accuracy
+        sorted_topic_accuracy = sorted(
+            topic_accuracy_dict.items(),
+            key=lambda item: item[1]["accuracy"],
+            reverse=True
+        )
+        # Now sorted_topic_accuracy is like:
+        # [("Geometry - Circles", {"correct":..., "attempted":..., "accuracy":...}), ...]
+
+        # 2. Build arrays for Chart.js
+        topic_labels = [t[0] for t in sorted_topic_accuracy]  # e.g. ["Geometry - Circles", "Algebra - Factoring", ...]
+        topic_values = [round(t[1]["accuracy"] * 100, 1) for t in sorted_topic_accuracy]  # e.g. [85.0, 72.3, ...]
+
+        # We also sort event summaries and participant breakdowns.
         event_summaries = get_event_scores_summary()
+        # For example, sort them by totalCorrect descending:
+        event_summaries.sort(key=lambda e: e["totalCorrect"], reverse=True)
+
         participant_breakdowns = get_individual_breakdowns()
+        # Sort them by totalCorrect descending:
+        participant_breakdowns.sort(key=lambda p: p["totalCorrect"], reverse=True)
 
         return render_template(
             "dashboard.html",
-            topic_accuracy=topic_accuracy,
+            # The standard data for your tables:
+            topic_accuracy=topic_accuracy_dict,  # Might or might not use sorted
             event_summaries=event_summaries,
-            participant_breakdowns=participant_breakdowns
+            participant_breakdowns=participant_breakdowns,
+            # The arrays for the chart:
+            topic_labels=topic_labels,
+            topic_values=topic_values
         )
 
     # ---------- OPTIONAL: DELETION ROUTES ----------

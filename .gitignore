@@ -65,3 +65,4 @@ uploads/scores/*
 uploads/topic_list/*
 data/test_store.json
 data/blank_store.json
+data/topic_list.txt

@@ -1,8 +1,11 @@
+# src/data_manager.py
+
 import json
 import os
 import uuid
 
 STORE_FILE_PATH = os.path.join("data", "store.json")
+DEFAULT_TOPIC_LIST_PATH = os.path.join("data", "topic_list.json")
 
 
 def load_data():
@@ -17,11 +20,20 @@ def load_data():
         data["meets"] = []
     return data
 
-
 def save_data(data):
     with open(STORE_FILE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
+def load_default_topic_list():
+    """Loads the default topic list from data/topic_list.json."""
+    if os.path.exists(DEFAULT_TOPIC_LIST_PATH):
+        with open(DEFAULT_TOPIC_LIST_PATH, "r", encoding="utf-8") as f:
+            try:
+                default_topics = json.load(f)
+                return default_topics
+            except json.JSONDecodeError:
+                print("Error decoding the default topic list JSON.")
+    return {}
 
 def create_meet(title):
     data = load_data()
@@ -29,7 +41,8 @@ def create_meet(title):
     new_meet = {
         "id": new_meet_id,
         "title": title,
-        "topicList": {},
+        # Initialize topicList with the default from topic_list.json.
+        "topicList": load_default_topic_list(),
         "topicListUploads": [],
         "events": []
     }

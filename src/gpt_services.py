@@ -68,7 +68,7 @@ def parse_topic_list_images(file_paths):
                 "  \"Algebra II\": [],\n"
                 "  \"Precalculus\": []\n"
                 "}\n\n"
-                "Return valid JSON only. No extra commentary."
+                "Do not skip any topics. Topics are organized by course in vertical columns in the images. Return valid JSON only. No extra commentary."
             ),
         }
     ]
@@ -92,7 +92,7 @@ def parse_topic_list_images(file_paths):
     # 2. Make the call
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",

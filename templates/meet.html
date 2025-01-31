@@ -19,10 +19,8 @@
             {{ event.eventName }}
           </a>
         </div>
-        <!-- Optional delete button -->
         <form action="{{ url_for('remove_event', meet_id=meet.id, event_id=event.id) }}" method="POST" class="ms-3">
-          <button type="submit" class="btn btn-danger btn-sm"
-                  onclick="return confirm('Delete this event?')">
+          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this event?')">
             Delete
           </button>
         </form>
@@ -38,38 +36,181 @@
 <h3>Upload Topic List</h3>
 <form action="{{ url_for('upload_topic_list', meet_id=meet.id) }}" method="POST" enctype="multipart/form-data" class="mb-3">
   <div class="mb-3">
-    <input type="file" name="files" multiple class="form-control">
+    <input type="file" name="files" accept=".jpg, .jpeg, .png" multiple class="form-control">
   </div>
   <button type="submit" class="btn btn-secondary">Submit Topic List</button>
 </form>
-
+<p>(This will override the default list)</p>
 <hr>
-<!-- Show the parsed topic list in a table below the events -->
+<!-- Inline Editable Topic Table -->
 {% if meet.topicList and meet.topicList|length > 0 %}
   <h3>Parsed Topics</h3>
+  <p>Feel free to edit</p>
   <div class="table-responsive">
-    <table class="table table-bordered">
+    <table class="table table-bordered" id="topic-table">
       <thead>
         <tr>
           <th>Subject</th>
           <th>Topics</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
       {% for subject, topics in meet.topicList.items() %}
-        <tr>
+        <tr data-subject="{{ subject }}">
           <td>{{ subject }}</td>
-          <td>
+          <td class="topics-cell">
             {% for t in topics %}
-              <span class="badge bg-info text-dark me-1">{{ t }}</span>
+              <span class="badge bg-info text-dark editable-topic" contenteditable="true">
+                {{ t }} <button class="delete-topic btn btn-link p-0" title="Delete this topic">&times;</button>
+              </span>
             {% endfor %}
+          </td>
+          <td>
+            <button class="btn btn-success btn-sm add-topic">Add Topic</button>
           </td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
+    <!-- Auto-save is triggered automatically; no manual Save button -->
   </div>
 {% else %}
   <p>No parsed topic list yet.</p>
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+  /* Remove any extra left padding from the badge and indent the text */
+  .editable-topic {
+    position: relative;
+    text-indent: 0px;  /* Push the text right so it doesn't overlap the delete button */
+    /* You can adjust this value if needed */
+  }
+  /* Position the delete button absolutely at the left edge */
+  .delete-topic {
+    position: absolute;
+    left: 1px;           /* Adjust horizontal position as needed */
+    top: 20%;
+    transform: translate(0, -50%);  /* Vertically center the button */
+    font-size: 10px;
+    text-decoration: none;  /* Remove underline */
+    color: #dc3545;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  .delete-topic:hover {
+    color: #a71d2a;
+  }
+</style>
+
+<script>
+console.log("Script loaded");
+
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("DOM fully loaded");
+  let autoSaveTimer = null;
+  const debounceDelay = 1000; // 1 second delay
+
+  // Function to send the updated topics via AJAX
+  function autoSaveTopics() {
+    console.log("autoSaveTopics triggered");
+    const topicList = {};
+    document.querySelectorAll('#topic-table tbody tr').forEach(function(row) {
+      const subject = row.getAttribute('data-subject');
+      const topics = [];
+      row.querySelectorAll('.editable-topic').forEach(function(badge) {
+        // Clone the badge, remove the delete button, and then extract text
+        let badgeClone = badge.cloneNode(true);
+        let delBtn = badgeClone.querySelector('.delete-topic');
+        if (delBtn) { delBtn.remove(); }
+        let topicText = badgeClone.textContent.trim();
+        console.log("Found topic text:", topicText);
+        if (topicText) { topics.push(topicText); }
+      });
+      topicList[subject] = topics;
+    });
+    console.log("Prepared topicList:", topicList);
+    const updateUrl = '{{ url_for("update_topic_list_ajax", meet_id=meet.id) }}';
+    console.log("Update URL:", updateUrl);
+    fetch(updateUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topicList: topicList })
+    })
+    .then(response => {
+      console.log("Fetch response received");
+      return response.json();
+    })
+    .then(data => {
+      console.log("Response data:", data);
+      if (data.status === "success") {
+        console.log('Auto-save successful');
+      } else {
+        console.error('Auto-save error: ' + data.message);
+      }
+    })
+    .catch(error => {
+      console.error('Error during auto-save:', error);
+    });
+  }
+
+  // Function to debounce the auto-save
+  function scheduleAutoSave() {
+    console.log("scheduleAutoSave called");
+    if (autoSaveTimer) { clearTimeout(autoSaveTimer); }
+    autoSaveTimer = setTimeout(autoSaveTopics, debounceDelay);
+  }
+
+  const topicTable = document.getElementById('topic-table');
+  if (!topicTable) {
+    console.error("No element with id 'topic-table' found");
+  } else {
+    console.log("Found topic-table element");
+    // Listen for input events on the table (for contenteditable changes)
+    topicTable.addEventListener('input', function(e) {
+      if (e.target && e.target.classList.contains('editable-topic')) {
+        console.log("Input event on editable-topic", e.target);
+        scheduleAutoSave();
+      }
+    });
+    // Listen for keyup events for additional assurance
+    topicTable.addEventListener('keyup', function(e) {
+      if (e.target && e.target.classList.contains('editable-topic')) {
+        console.log("Keyup event on editable-topic", e.target);
+        scheduleAutoSave();
+      }
+    });
+    // Delegate click events on the table
+    topicTable.addEventListener('click', function(e) {
+      // Handle delete button clicks
+      if (e.target && e.target.closest('.delete-topic')) {
+        console.log("Click event on delete-topic", e.target);
+        const badge = e.target.closest('.editable-topic');
+        if (badge) {
+          badge.remove();
+          scheduleAutoSave();
+        }
+      }
+      // Handle add-topic button clicks
+      let addBtn = e.target.closest('.add-topic');
+      if (addBtn) {
+        console.log("Add-topic button clicked");
+        const row = addBtn.closest('tr');
+        const topicsCell = row.querySelector('.topics-cell');
+        const newBadge = document.createElement('span');
+        newBadge.className = 'badge bg-info text-dark editable-topic';
+        newBadge.setAttribute('contenteditable', 'true');
+        newBadge.innerHTML = 'New Topic <button class="delete-topic btn btn-link p-0" title="Delete this topic">&times;</button>';
+        topicsCell.appendChild(newBadge);
+        scheduleAutoSave();
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

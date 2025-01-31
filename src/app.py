@@ -1,8 +1,7 @@
-# src/app.py
-
 import os
 import uuid
-from flask import Flask, render_template, request, redirect, url_for, flash
+import json  # Needed for parsing and formatting JSON data
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from src.dashboard_logic import get_event_topic_accuracy
@@ -25,7 +24,8 @@ from src.data_manager import (
     add_participant_scores,
     delete_event,
     delete_participant,
-    update_event_num_questions,  # new helper
+    update_event_num_questions,
+    update_team_scores
 )
 from src.gpt_services import (
     parse_topic_list_images,
@@ -84,6 +84,23 @@ def create_app():
             flash("Meet not found.", "error")
             return redirect(url_for("home_page"))
         return render_template("meet.html", meet=meet)
+
+    @app.route("/meet/<meet_id>/update_topic_list_ajax", methods=["POST"])
+    def update_topic_list_ajax(meet_id):
+        """
+        Expects a JSON payload in the format:
+        { "topicList": { "Algebra": [...], "Geometry": [...], "Algebra II": [...], "Precalculus": [...] } }
+        Updates the meet’s topic list accordingly.
+        """
+        try:
+            data = request.get_json()
+            new_topic_list = data.get("topicList")
+            if new_topic_list is None:
+                return jsonify({"status": "error", "message": "No topicList provided"}), 400
+            update_meet_topic_list(meet_id, new_topic_list)
+            return jsonify({"status": "success"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
 
     @app.route("/meet/<meet_id>/create_event", methods=["GET", "POST"])
     def create_event_route(meet_id):
@@ -168,15 +185,9 @@ def create_app():
 
         return redirect(url_for("view_meet", meet_id=meet_id))
 
-
     # ----------Upload Exam Images & Parse Question Topics ----------
     @app.route("/meet/<meet_id>/event/<event_id>/upload_exam", methods=["POST"])
     def upload_exam_images(meet_id, event_id):
-        """
-        The user uploads the actual exam question photos to parse them with GPT,
-        which assigns topics to each questionNumber. We store them in event["examTopics"].
-        We also set event["numQuestions"] = the count or max questionNumber from the parse.
-        """
         event = get_event(meet_id, event_id)
         if not event:
             flash("Event not found.", "error")
@@ -207,10 +218,7 @@ def create_app():
             known_list = meet.get("topicList", {}) if meet else {}
             try:
                 exam_data = parse_exam_images(saved_file_paths, known_list, event_name=event.get("eventName",""))
-                # store in event["examTopics"]
                 update_event_exam_topics(meet_id, event_id, exam_data)
-
-                # set event["numQuestions"] = max questionNumber or length if you prefer
                 if exam_data:
                     max_q = max(q["questionNumber"] for q in exam_data)
                     update_event_num_questions(meet_id, event_id, max_q)
@@ -223,10 +231,6 @@ def create_app():
     # ---------- Team Scores (Single set for entire team) ----------
     @app.route("/meet/<meet_id>/event/<event_id>/upload_team_scores", methods=["POST"])
     def upload_team_scores(meet_id, event_id):
-        from src.data_manager import (
-            get_event, update_team_scores, add_score_files
-        )
-
         event_data = get_event(meet_id, event_id)
         if not event_data:
             flash("Event not found.", "error")
@@ -237,13 +241,11 @@ def create_app():
             flash("Not a team event, can't upload single team score.", "error")
             return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
-        score_mode = request.form.get("scoreMode", "manual")  # default "manual"
-
+        score_mode = request.form.get("scoreMode", "manual")
         correct_qs = []
         incorrect_qs = []
 
         if score_mode == "manual":
-            # If user never uploaded exam images or never set event["numQuestions"], we might not have it
             num_q = event_data.get("numQuestions", 0)
             if num_q < 1:
                 flash("No total # of questions set for this event. Upload exam or set numQuestions manually first!", "error")
@@ -266,8 +268,7 @@ def create_app():
                     correct_qs.append(q_num)
 
             flash(f"Team scores set manually. correct={len(correct_qs)}, incorrect={len(incorrect_qs)}", "success")
-
-        else:  # GPT approach, single image
+        else:
             uploaded_file = request.files.get("scoreFile")
             if not uploaded_file or uploaded_file.filename == "":
                 flash("No file selected for GPT-based team parse.", "error")
@@ -300,8 +301,6 @@ def create_app():
     # ---------- SINGLE-STUDENT SCORES (INDIVIDUAL EVENTS) ----------
     @app.route("/meet/<meet_id>/event/<event_id>/upload_single_student_score", methods=["POST"])
     def upload_single_student_score(meet_id, event_id):
-        from src.data_manager import get_event, add_participant_scores, add_score_files
-
         event_data = get_event(meet_id, event_id)
         if not event_data:
             flash("Event not found.", "error")
@@ -317,7 +316,6 @@ def create_app():
             flash("Missing form data (name or grade).", "error")
             return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
-        # If it's a team event, adding a participant requires no question-level data
         if is_team_event:
             new_participant = {
                 "studentName": student_name,
@@ -329,8 +327,7 @@ def create_app():
             flash(f"Added {student_name} to team event '{event_name}'.", "success")
             return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
-        # Otherwise, it's an individual event => we handle image/manual
-        score_mode = request.form.get("scoreMode", "manual")  # default is manual
+        score_mode = request.form.get("scoreMode", "manual")
         correct_qs = []
         incorrect_qs = []
 
@@ -357,9 +354,7 @@ def create_app():
                     correct_qs.append(i)
 
             flash(f"Manually entered data for {student_name}. Correct={len(correct_qs)}, Incorrect={len(incorrect_qs)}", "success")
-
         else:
-            # GPT approach
             uploaded_file = request.files.get("scoreFile")
             if not uploaded_file or uploaded_file.filename == "":
                 flash("No file selected for image-based parsing.", "error")
@@ -398,18 +393,15 @@ def create_app():
     # ---------- DASHBOARD ----------
     @app.route("/dashboard")
     def dashboard_view():
-        # Now includes both team & individual events in the topic coverage
         topic_accuracy_dict = get_topic_accuracy_across_meets(skip_team_events=False)
         sorted_topic_accuracy = sorted(topic_accuracy_dict.items(), key=lambda i: i[1]["accuracy"])
 
         topic_labels = [t[0] for t in sorted_topic_accuracy]
         topic_values = [round(t[1]["accuracy"] * 100, 1) for t in sorted_topic_accuracy]
 
-        event_summaries = get_event_scores_summary()  # includes both team & individual
-        # sort if you like
+        event_summaries = get_event_scores_summary()
         event_summaries.sort(key=lambda e: e["totalCorrect"], reverse=True)
 
-        # participant breakdown might skip team events or not, up to you
         participant_breakdowns = get_individual_breakdowns(skip_team_events=True)
         participant_breakdowns.sort(key=lambda p: p["totalCorrect"], reverse=True)
 
@@ -449,7 +441,6 @@ def create_app():
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
     return app
-
 
 if __name__ == "__main__":
     flask_app = create_app()

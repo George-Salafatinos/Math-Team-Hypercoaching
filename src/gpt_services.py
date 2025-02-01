@@ -129,86 +129,94 @@ def parse_topic_list_images(file_paths):
         }
 
 
-
 def parse_exam_images(file_paths, known_topic_list, event_name=""):
     """
-    We adapt the prompt to say:
-    'This exam is on the <courses> topics.'
-    Then we require 2-4 topics per question.
+    Parses exam images and returns a JSON structure that maps each question to a set of 2-4 topics.
+    
+    The function:
+      1. Determines which courses are relevant to the event based on its name.
+      2. Filters the known_topic_list to only include topics from those courses.
+      3. Converts the images to base64.
+      4. Constructs a prompt for GPT to tag each exam question with relevant topics.
+    
+    Returns a JSON structure (list of dicts) with each dict containing:
+      "questionNumber": <number>,
+      "topics": [list of topics]
     """
-    # Determine courses from event name
+    # Determine courses related to the exam based on the event name.
     courses = get_event_courses(event_name)
     courses_str = ", ".join(courses) if courses else "various"
+    
+    # Filter the known_topic_list to only include keys (courses) in the list 'courses'
+    filtered_known_topic_list = {
+        course: topics for course, topics in known_topic_list.items() if course in courses
+    }
 
+    # Convert each image file to a base64 string.
     images_b64 = []
     for path in file_paths:
         full_path = os.path.join("uploads", path)
         with open(full_path, "rb") as f:
             b64_data = base64.b64encode(f.read()).decode("utf-8")
             images_b64.append({"filename": path, "content_b64": b64_data})
-
+    
+    # System prompt for GPT.
     system_prompt = (
-        "You are an AI that reads exam images (base64), "
-        "identifies each question number, and tags them with 2-4 relevant math topics.\n"
+        "You are an AI that reads exam images (provided as base64 strings), "
         "Return valid JSON only.\n"
     )
-
-    # We embed the event's courses in the user message
+    print(filtered_known_topic_list)
+    # Build a user prompt that includes:
+    # - The courses relevant to this exam.
+    # - A description of the task.
+    # - An example of the expected JSON output.
+    # - The filtered known topic list.
     user_text = (
         f"This exam is on the {courses_str} topics. We also have a known topic list to guide labeling.\n"
-        "Please identify each question (questionNumber) and list 2-4 relevant topics, returning valid JSON only.\n"
+        "Please identify each question (questionNumber) and identify all of the topics the question and solution require, returning valid JSON only. Do not make up topics, but use verbatim only those from the list. Prefix the topics with what course they are from.\n"
         "Example:\n"
-        "[\n  {\"questionNumber\": 1, \"topics\": [\"Algebra - Factoring\", \"Geometry - angle measure\"]},\n  ...\n]\n\n"
-        f"Known topic list for reference: {json.dumps(known_topic_list)}"
+        "[\n  {\"questionNumber\": 1, \"topics\": [\"Algebra - percents, percent of change\", \"Geometry - similarity\"]},\n  ...\n]\n\n"
+        f"Known topic list for reference: {json.dumps(filtered_known_topic_list)}"
     )
-
+    
+    # Build the content list with text and image parts.
     content_list = [
-        {"type": "text", "text": user_text},
+        {"type": "text", "text": system_prompt + user_text},
     ]
-
     for path in file_paths:
         full_path = os.path.join("uploads", path)
         with open(full_path, "rb") as f:
             b64_str = base64.b64encode(f.read()).decode("utf-8")
-        content_list.append(
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/png;base64,{b64_str}"
-                }
-            }
-        )
-
+        content_list.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{b64_str}"}
+        })
+    
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
-                {
-                    "role": "user",
-                    "content": content_list
-                }
+                {"role": "user", "content": content_list}
             ],
-            temperature = .2
-            #max_tokens=700
+            temperature=0.2
         )
         assistant_reply = response.choices[0].message.content
         print("GPT Response:", assistant_reply)
-
-        # Strip any markdown code block formatting
+        
+        # Optionally, strip markdown formatting if necessary.
         clean_response = assistant_reply.strip()
-        if clean_response.startswith('```'):
-            # Remove opening ```json or ``` and closing ```
-            clean_response = clean_response.split('\n', 1)[1] if '\n' in clean_response else clean_response[3:]
-            clean_response = clean_response.rsplit('\n', 1)[0] if '\n' in clean_response else clean_response[:-3]
-            clean_response = clean_response.strip()
-            print(f"Cleaned response: {clean_response[:200]}...")  # Print first 200 chars
-        assistant_reply = clean_response
-
-        parsed_data = json.loads(assistant_reply)
+        if clean_response.startswith("```"):
+            clean_response = clean_response.split('\n', 1)[1].rsplit('\n', 1)[0].strip()
+        parsed_data = json.loads(clean_response)
+        if '-' not in parsed_data[0]['topics'][0]:
+            # force prefix onto each topic
+            for question in parsed_data:
+                question['topics'] = [f"{courses[0]} - {topic}" for topic in question['topics']]
         return parsed_data
     except Exception as e:
         print("Error calling GPT for parse_exam_images:", e)
         return []
+
 
 
 def parse_single_student_exam_image(file_path, known_exam_data):
@@ -250,7 +258,7 @@ def parse_single_student_exam_image(file_path, known_exam_data):
 
     try:
         response = client.beta.chat.completions.parse(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",

@@ -124,7 +124,7 @@ def create_app():
         return render_template("create_event.html",
                                meet_id=meet_id,
                                possible_events=FIXED_EVENTS)
-
+    
     @app.route("/meet/<meet_id>/event/<event_id>")
     def view_event(meet_id, event_id):
         event = get_event(meet_id, event_id)
@@ -132,22 +132,35 @@ def create_app():
             flash("Event not found.", "error")
             return redirect(url_for("view_meet", meet_id=meet_id))
 
-        # Now we compute event-level topic accuracy
+        # Retrieve exam topics from the event
+        exam_topics = event.get("examTopics", [])
+
+        # Sort exam_topics by converting questionNumber to an integer.
+        try:
+            exam_topics_sorted = sorted(exam_topics, key=lambda q: int(q.get("questionNumber", 0)))
+        except Exception as e:
+            print("Error sorting exam topics:", e)
+            exam_topics_sorted = exam_topics  # fallback to unsorted if error occurs
+
+        # Debug: print the sorted exam topics on the server console
+        print("Sorted exam topics:", exam_topics_sorted)
+
+        # (Optional) Compute additional event statistics, charts, etc.
         event_topic_stats = get_event_topic_accuracy(meet_id, event_id)
-        # sort from lowest to highest
-        sorted_topic_stats = sorted(
-            event_topic_stats.items(),
-            key=lambda x: x[1]["accuracy"]
-        )
+        sorted_topic_stats = sorted(event_topic_stats.items(), key=lambda x: x[1]["accuracy"])
         chart_labels = [t[0] for t in sorted_topic_stats]
         chart_values = [round(t[1]["accuracy"] * 100, 1) for t in sorted_topic_stats]
 
+        # Pass the sorted exam topics to the template
         return render_template("event.html",
                             meet_id=meet_id,
                             event=event,
+                            exam_topics=exam_topics_sorted,
                             event_topic_stats=sorted_topic_stats,
                             chart_labels=chart_labels,
                             chart_values=chart_values)
+
+
 
     @app.route("/meet/<meet_id>/upload_topic_list", methods=["POST"])
     def upload_topic_list(meet_id):
@@ -405,8 +418,7 @@ def create_app():
         participant_breakdowns = get_individual_breakdowns(skip_team_events=True)
         participant_breakdowns.sort(key=lambda p: p["totalCorrect"], reverse=True)
 
-        return render_template(
-            "dashboard.html",
+        return render_template("dashboard.html",
             sorted_topic_accuracy=sorted_topic_accuracy,
             topic_accuracy=topic_accuracy_dict,
             event_summaries=event_summaries,

@@ -26,11 +26,12 @@
     <label>Exam Image(s):</label>
     <input type="file" name="files" multiple class="form-control">
   </div>
+  <p>Make sure the images are clear and right side up</p>
   <button type="submit" class="btn btn-secondary">Submit Exam Images</button>
 </form>
 
-{% if event.examTopics and event.examTopics|length > 0 %}
-<!-- Table of question -> topics -->
+{% if exam_topics and exam_topics|length > 0 %}
+<!-- Table of question -> topics (sorted by question number) -->
 <div class="mb-3">
   <h4>Exam Questions & Topics</h4>
   <div class="table-responsive">
@@ -42,7 +43,7 @@
         </tr>
       </thead>
       <tbody>
-      {% for q in event.examTopics %}
+      {% for q in exam_topics %}
         <tr>
           <td>{{ q.questionNumber }}</td>
           <td>
@@ -143,6 +144,22 @@ function toggleTeamScoreMode() {
   } else {
     manualDiv.style.display = "block";
     imageDiv.style.display = "none";
+  }
+}
+
+function showLoading() {
+  console.log("showLoading() called");
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'block';
+  }
+}
+
+function hideLoading() {
+  console.log("hideLoading() called");
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
   }
 }
 </script>

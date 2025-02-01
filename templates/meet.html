@@ -112,10 +112,25 @@
 console.log("Script loaded");
 
 document.addEventListener('DOMContentLoaded', function() {
-  console.log("DOM fully loaded");
+  console.log("Debug: DOM fully loaded");
   let autoSaveTimer = null;
   const debounceDelay = 1000; // 1 second delay
 
+  // Helper functions to show/hide the loading overlay.
+  function showLoading() {
+    console.log("Debug: showLoading() called");
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+      overlay.style.display = 'block';
+    }
+  }
+  function hideLoading() {
+    console.log("Debug: hideLoading() called");
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+      overlay.style.display = 'none';
+    }
+  }
   // Function to send the updated topics via AJAX
   function autoSaveTopics() {
     console.log("autoSaveTopics triggered");
@@ -156,6 +171,35 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(error => {
       console.error('Error during auto-save:', error);
+    });
+  }
+
+    // Show the loading indicator before starting the fetch.
+    showLoading();
+    
+    fetch(updateUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topicList: topicList })
+    })
+    .then(response => {
+      console.log("Debug: Fetch response received");
+      return response.json();
+    })
+    .then(data => {
+      console.log("Debug: Response data:", data);
+      if (data.status === "success") {
+        console.log('Debug: Auto-save successful');
+      } else {
+        console.error('Debug: Auto-save error: ' + data.message);
+      }
+    })
+    .catch(error => {
+      console.error('Debug: Error during auto-save:', error);
+    })
+    .finally(() => {
+      // Hide the loading indicator regardless of success or failure.
+      hideLoading();
     });
   }
 

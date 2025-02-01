@@ -9,7 +9,7 @@
 </div>
 
 <!-- 1. Topic Accuracy Table (sorted) -->
-<h3>Topic Accuracy (Table, Sorted from Lowest->Highest)</h3>
+<h3>Topic Accuracy (Table, Sorted from Lowest→Highest)</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
     <thead>
@@ -18,22 +18,24 @@
         <th>Correct</th>
         <th>Attempted</th>
         <th>Accuracy (%)</th>
+        <th>Importance</th>
       </tr>
     </thead>
     <tbody>
-    {% for topic, stats in sorted_topic_accuracy %}
-      <tr>
-        <td>{{ topic }}</td>
-        <td>{{ stats.correct }}</td>
-        <td>{{ stats.attempted }}</td>
-        <td>{{ (stats.accuracy * 100)|round(1) }}</td>
-      </tr>
-    {% endfor %}
+      {% for topic, stats in sorted_topic_accuracy %}
+        <tr>
+          <td>{{ topic }}</td>
+          <td>{{ stats.correct }}</td>
+          <td>{{ stats.attempted }}</td>
+          <td>{{ (stats.accuracy * 100)|round(1) }}</td>
+          <td>{{ stats.importance|round(1) }}</td>
+        </tr>
+      {% endfor %}
     </tbody>
   </table>
 </div>
 
-<!-- 2. Event Scores Summary (lowest->highest totalCorrect) -->
+<!-- 2. Event Scores Summary (lowest→highest totalCorrect) -->
 <h3>Event Scores Summary</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
@@ -47,20 +49,20 @@
       </tr>
     </thead>
     <tbody>
-    {% for summary in event_summaries %}
-      <tr>
-        <td>{{ summary.meetTitle }}</td>
-        <td>{{ summary.eventName }}</td>
-        <td>{{ summary.totalQuestions }}</td>
-        <td>{{ summary.totalCorrect }}</td>
-        <td>{{ summary.totalParticipants }}</td>
-      </tr>
-    {% endfor %}
+      {% for summary in event_summaries %}
+        <tr>
+          <td>{{ summary.meetTitle }}</td>
+          <td>{{ summary.eventName }}</td>
+          <td>{{ summary.totalQuestions }}</td>
+          <td>{{ summary.totalCorrect }}</td>
+          <td>{{ summary.totalParticipants }}</td>
+        </tr>
+      {% endfor %}
     </tbody>
   </table>
 </div>
 
-<!-- 3. Individual Participant Breakdowns (lowest->highest totalCorrect) -->
+<!-- 3. Individual Participant Breakdowns (lowest→highest totalCorrect) -->
 <h3>Individual Participant Breakdowns</h3>
 <div class="table-responsive">
   <table class="table table-bordered">
@@ -75,52 +77,52 @@
       </tr>
     </thead>
     <tbody>
-    {% for participant in participant_breakdowns %}
-      <tr>
-        <td>{{ participant.studentName }}</td>
-        <td>{{ participant.gradeLevel }}</td>
-        <td>{{ participant.meetsEventsParticipated }}</td>
-        <td>{{ participant.totalCorrect }}</td>
-        <td>{{ participant.totalQuestionsAttempted }}</td>
-        <td>
-          {% if participant.totalQuestionsAttempted > 0 %}
-            {{ (participant.totalCorrect / participant.totalQuestionsAttempted * 100) | round(1) }}
-          {% else %}
-            0.0
-          {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
+      {% for participant in participant_breakdowns %}
+        <tr>
+          <td>{{ participant.studentName }}</td>
+          <td>{{ participant.gradeLevel }}</td>
+          <td>{{ participant.meetsEventsParticipated }}</td>
+          <td>{{ participant.totalCorrect }}</td>
+          <td>{{ participant.totalQuestionsAttempted }}</td>
+          <td>
+            {% if participant.totalQuestionsAttempted > 0 %}
+              {{ (participant.totalCorrect / participant.totalQuestionsAttempted * 100)|round(1) }}
+            {% else %}
+              0.0
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
     </tbody>
   </table>
 </div>
 
 <!-- Script to initialize the chart -->
 <script>
-    const topicLabels = {{ topic_labels|tojson }};
-    const topicValues = {{ topic_values|tojson }};
+  const topicLabels = {{ topic_labels|tojson }};
+  const topicValues = {{ topic_values|tojson }};
   
-    const ctx = document.getElementById('topicAccuracyChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: topicLabels,
-        datasets: [{
-          label: 'Topic Accuracy (%) - All Meets',
-          data: topicValues,
-          backgroundColor: 'rgba(54, 162, 235, 0.6)'
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 100
-          }
+  const ctx = document.getElementById('topicAccuracyChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: topicLabels,
+      datasets: [{
+        label: 'Topic Accuracy (%) - All Meets',
+        data: topicValues,
+        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
         }
       }
-    });
-  </script>
+    }
+  });
+</script>
 
 {% endblock %}

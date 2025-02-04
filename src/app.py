@@ -403,12 +403,11 @@ def create_app():
         add_participant_scores(meet_id, event_id, [new_participant])
         return redirect(url_for("view_event", meet_id=meet_id, event_id=event_id))
 
-    # ---------- DASHBOARD ----------
     @app.route("/dashboard")
     def dashboard_view():
+        # Get the global topic accuracy stats
         topic_accuracy_dict = get_topic_accuracy_across_meets(skip_team_events=False)
         sorted_topic_accuracy = sorted(topic_accuracy_dict.items(), key=lambda i: i[1]["accuracy"])
-
         topic_labels = [t[0] for t in sorted_topic_accuracy]
         topic_values = [round(t[1]["accuracy"] * 100, 1) for t in sorted_topic_accuracy]
 
@@ -418,14 +417,30 @@ def create_app():
         participant_breakdowns = get_individual_breakdowns(skip_team_events=True)
         participant_breakdowns.sort(key=lambda p: p["totalCorrect"], reverse=True)
 
+        courses = ["Algebra", "Geometry", "Algebra II", "Precalculus"]
+        course_topic_data = {}
+
+        for course in courses:
+            # Get the list of topics for this course from your default topic list.
+            topics_for_course = {}
+            # Filter global topics: must be in this course and have importance ≥ 7.
+            for topic, stats in topic_accuracy_dict.items():
+                if course == topic.split(" - ")[0] and stats.get("importance", 0) >= 7:
+                    topics_for_course[topic] = stats
+            # Sort topics from least to highest importance.
+            sorted_topics = sorted(topics_for_course.items(), key=lambda x: x[1]["importance"], reverse=True)
+            labels = [t[0] for t in sorted_topics]
+            values = [round(t[1]["importance"], 1) for t in sorted_topics]
+            course_topic_data[course] = {"labels": labels, "values": values}
+
         return render_template("dashboard.html",
-            sorted_topic_accuracy=sorted_topic_accuracy,
-            topic_accuracy=topic_accuracy_dict,
-            event_summaries=event_summaries,
-            participant_breakdowns=participant_breakdowns,
-            topic_labels=topic_labels,
-            topic_values=topic_values
-        )
+                            sorted_topic_accuracy=sorted_topic_accuracy,
+                            topic_accuracy=topic_accuracy_dict,
+                            event_summaries=event_summaries,
+                            participant_breakdowns=participant_breakdowns,
+                            topic_labels=topic_labels,
+                            topic_values=topic_values,
+                            course_topic_data=course_topic_data)
 
     # ---------- Delete Routes ----------
     @app.route("/meet/<meet_id>/delete_event/<event_id>", methods=["POST"])

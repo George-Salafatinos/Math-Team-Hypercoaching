@@ -7,6 +7,91 @@
   <h3>Topic Accuracy Chart</h3>
   <canvas id="topicAccuracyChart" width="400" height="200"></canvas>
 </div>
+<!-- Course-Specific Importance Charts -->
+<h3> WHAT WE NEED TO STUDY</h3>
+<p> Topics that either we have never gotten right, or get wrong a long and come up a lot. Importance =  (1 - accuracy^3)*10*(1-(1/2)(1/(#questions+1))). 0% accuracy on 1 question = 7.5</p>
+<div class="row">
+  {% for course, data in course_topic_data.items() %}
+    <div class="col-md-6">
+      <div class="card mb-3">
+        <div class="card-header">
+          {{ course }}
+        </div>
+        <div class="card-body">
+          {% if data.labels|length > 0 %}
+            <!-- Chart -->
+            <canvas id="chart-{{ course|replace(' ', '-') }}" width="200" height="200"></canvas>
+
+            <!-- Sorted Table -->
+            <h6 class="mt-4">Topics and Importance</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered">
+                <thead>
+                  <tr>
+                    <th>Topic</th>
+                    <th>Importance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for i in range(data["labels"]|length) %}
+                    <tr>
+                      <td>{{ data["labels"][i] }}</td>
+                      <td>{{ data["values"][i] }}</td>  <!-- ✅ Correctly accesses values -->
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-muted">No topics found for {{ course }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<script>
+  {% for course, data in course_topic_data.items() %}
+    {% if data.labels|length > 0 %}
+      var ctx_{{ course|replace(' ', '_') }} = document.getElementById('chart-{{ course|replace(' ', '-') }}').getContext('2d');
+      new Chart(ctx_{{ course|replace(' ', '_') }}, {
+        type: 'bar',
+        data: {
+          labels: {{ data["labels"]|tojson }},
+          datasets: [{
+            label: '{{ course }} Importance',
+            data: {{ data["values"]|tojson }},
+            backgroundColor: 'rgba(255, 99, 132, 0.6)'
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              display: false  <!-- Hide x-axis labels -->
+            },
+            y: {
+              min: 5,
+              max: 10,
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Importance'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          }
+        }
+      });
+    {% endif %}
+  {% endfor %}
+</script>
 
 <!-- 1. Topic Accuracy Table (sorted) -->
 <h3>Topic Accuracy (Table, Sorted from Lowest→Highest)</h3>

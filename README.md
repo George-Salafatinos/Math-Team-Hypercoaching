@@ -1,6 +1,6 @@
 # Math Team Analytics Dashboard
 
-<img src="https://github.com/George-Salafatinos/Math-Team-Hypercoaching/blobl/main/images/chart.png" width="100">
+<img src="https://github.com/George-Salafatinos/Math-Team-Hypercoaching/blob/main/images/chart.png" width="100">
 
 ![Alttext](images/importanttopics.png | width=200)
 This project is a web-based analytics dashboard for tracking the performance of a high school Math Team. The application processes data from various math competitions, including individual and team events, to provide detailed insights into topic mastery, participant performance, and overall team strengths. Specifically designed for WSML in Illinois.
